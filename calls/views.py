@@ -1,0 +1,271 @@
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, SAFE_METHODS, BasePermission
+from django.utils import timezone
+from django.db.models import Q
+from datetime import timedelta
+from config.pagination import FlexiblePageNumberPagination
+from .models import Call, CallDetail
+from .serializers import CallSerializer, CallDetailSerializer
+
+
+class IsAdminOrSpiritualFather(BasePermission):
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
+        try:
+            adviser = request.user.register_profile.adviser_profile
+            role = adviser.role.name
+            if role == 'Administrador':
+                return True
+            if role == 'Padre Espiritual' and request.method in SAFE_METHODS + ('POST', 'PUT', 'PATCH'):
+                return True
+            return False
+        except:
+            return False
+
+
+class CallViewSet(viewsets.ModelViewSet):
+    queryset = Call.objects.all()
+    permission_classes = [IsAuthenticated, IsAdminOrSpiritualFather]
+
+    def create(self, request, *args, **kwargs):
+        try:
+            adviser = request.user.register_profile.adviser_profile
+            if adviser.role.name != 'Administrador':
+                return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        except:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        from .serializers import CallCreateSerializer
+        serializer = CallCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        call = Call.objects.create(
+            person=serializer.validated_data['person'],
+            call_number=serializer.validated_data['call_number'],
+        )
+        CallDetail.objects.create(
+            call=call,
+            made_by=serializer.validated_data['made_by'],
+            scheduled_date=serializer.validated_data['scheduled_date'],
+        )
+        return Response(CallSerializer(call).data, status=status.HTTP_201_CREATED)
+
+    def get_serializer_class(self):
+        return CallSerializer
+
+    def get_queryset(self):
+        qs = Call.objects.all()
+        person_id = self.request.query_params.get('person')
+        if person_id:
+            qs = qs.filter(person_id=person_id)
+        return qs
+
+    @action(detail=True, methods=['post'])
+    def record_call(self, request, pk=None):
+        call = self.get_object()
+        detail = call.details.filter(made=False).first()
+        if not detail:
+            return Response({'error': 'No hay detalle pendiente para esta llamada'}, status=status.HTTP_400_BAD_REQUEST)
+
+        adviser = request.user.register_profile.adviser_profile
+        data = request.data.copy() if request.data else {}
+        if 'signature' not in data and adviser.signature:
+            data['signature'] = adviser.signature
+
+        serializer = CallDetailSerializer(detail, data=data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(made=True, date_made=timezone.now())
+
+        # Notificar al asesor según la llamada registrada
+        if call.call_number in (1, 2):
+            from notifications.services import OpenWAService
+            OpenWAService().notify_call_recorded(adviser, call.person, call.call_number)
+
+        # Auto-crear siguiente llamada si corresponde
+        if call.call_number < 3:
+            next_number = call.call_number + 1
+            delay = timedelta(minutes=10) if next_number == 2 else timedelta(minutes=15)
+            next_call = Call.objects.create(person=call.person, call_number=next_number)
+            CallDetail.objects.create(
+                call=next_call,
+                made_by=detail.made_by,
+                scheduled_date=timezone.now() + delay
+            )
+
+        # Si es la tercera llamada, verificar si todas fueron exitosas
+        if call.call_number == 3:
+            person = call.person
+            effective_count = CallDetail.objects.filter(
+                call__person=person, made=True, state='effective'
+            ).count()
+            if effective_count == 3:
+                person.member_state = 'effective'
+                if person.spiritual_father:
+                    person.spiritual_father.assigned_count = max(0, person.spiritual_father.assigned_count - 1)
+                    person.spiritual_father.save()
+                person.save()
+                from notifications.services import OpenWAService
+                OpenWAService().notify_third_call_completed(adviser, person)
+
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def pending_calls(self, request):
+        user = request.user
+        try:
+            adviser = user.register_profile.adviser_profile
+        except:
+            return Response({'error': 'No eres asesor'}, status=status.HTTP_403_FORBIDDEN)
+
+        now = timezone.now()
+        if adviser.role.name == 'Administrador':
+            details = CallDetail.objects.filter(
+                made=False,
+                scheduled_date__gte=now
+            ).select_related('call', 'call__person')
+        else:
+            details = CallDetail.objects.filter(
+                call__person__spiritual_father=adviser,
+                made=False,
+                scheduled_date__gte=now
+            ).select_related('call', 'call__person')
+
+        result = []
+        for d in details:
+            remaining = d.scheduled_date - now
+            total = d.scheduled_date - d.call.created_in
+            pct = remaining.total_seconds() / total.total_seconds() if total.total_seconds() > 0 else 0
+            if pct > 0.5:
+                color = 'green'
+            elif pct > 0.25:
+                color = 'yellow'
+            elif pct > 0.0:
+                color = 'orange'
+            else:
+                color = 'red'
+
+            result.append({
+                'detail_id': d.id,
+                'call_id': d.call.id,
+                'person_id': d.call.person.id,
+                'person_name': f'{d.call.person.names} {d.call.person.lastname}',
+                'call_number': d.call.call_number,
+                'scheduled_date': d.scheduled_date,
+                'remaining_hours': remaining.total_seconds() / 3600,
+                'color': color,
+            })
+
+        return Response(result)
+
+    @action(detail=False, methods=['get'])
+    def all_calls(self, request):
+        user = request.user
+        try:
+            adviser = user.register_profile.adviser_profile
+        except:
+            return Response({'error': 'No eres asesor'}, status=status.HTTP_403_FORBIDDEN)
+
+        now = timezone.now()
+
+        if adviser.role.name == 'Administrador':
+            details = CallDetail.objects.all().select_related('call', 'call__person', 'made_by', 'made_by__profile')
+        else:
+            details = CallDetail.objects.filter(
+                call__person__spiritual_father=adviser,
+                made_by=adviser,
+            ).select_related('call', 'call__person')
+
+        name = request.query_params.get('name')
+        if name:
+            terms = name.split()
+            q = Q()
+            for term in terms:
+                q &= (Q(call__person__names__icontains=term) | Q(call__person__lastname__icontains=term))
+            details = details.filter(q)
+
+        made_by = request.query_params.get('made_by')
+        if made_by:
+            details = details.filter(made_by_id=made_by)
+
+        state_filter = request.query_params.get('state')
+        if state_filter == 'pending':
+            details = details.filter(made=False)
+        elif state_filter == 'effective':
+            details = details.filter(made=True, state='effective')
+        elif state_filter == 'not_effective':
+            details = details.filter(made=True, state='not_effective')
+
+        paginator = FlexiblePageNumberPagination()
+        paginator.page_size = request.query_params.get('page_size', paginator.page_size)
+        try:
+            paginator.page_size = int(paginator.page_size)
+        except (ValueError, TypeError):
+            paginator.page_size = 20
+        if paginator.page_size <= 0:
+            paginator.page_size = paginator.max_page_size
+
+        page = paginator.paginate_queryset(details, request)
+
+        def _serialize(d):
+            if d.made:
+                color = 'green' if d.state == 'effective' else 'red'
+            elif d.scheduled_date < now:
+                color = 'red'
+            else:
+                remaining = d.scheduled_date - now
+                total = d.scheduled_date - d.call.created_in
+                pct = remaining.total_seconds() / total.total_seconds() if total.total_seconds() > 0 else 0
+                if pct > 0.5:
+                    color = 'green'
+                elif pct > 0.25:
+                    color = 'yellow'
+                elif pct > 0.0:
+                    color = 'orange'
+                else:
+                    color = 'red'
+
+            return {
+                'detail_id': d.id,
+                'call_id': d.call.id,
+                'person_id': d.call.person.id,
+                'person_name': f'{d.call.person.names} {d.call.person.lastname}',
+                'call_number': d.call.call_number,
+                'scheduled_date': d.scheduled_date,
+                'date_made': d.date_made,
+                'made': d.made,
+                'state': d.state,
+                'annotation': d.annotation,
+                'signature': d.signature.url if d.signature else None,
+                'made_by_id': d.made_by.id,
+                'made_by_name': f'{d.made_by.profile.names} {d.made_by.profile.last_name}',
+                'color': color,
+            }
+
+        if page is not None:
+            result = [_serialize(d) for d in page]
+            return paginator.get_paginated_response(result)
+
+        result = [_serialize(d) for d in details]
+        return Response(result)
+
+
+class CallDetailViewSet(viewsets.ModelViewSet):
+    queryset = CallDetail.objects.all()
+    serializer_class = CallDetailSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = CallDetail.objects.all()
+        call_id = self.request.query_params.get('call')
+        if call_id:
+            qs = qs.filter(call_id=call_id)
+        user = self.request.user
+        try:
+            adviser = user.register_profile.adviser_profile
+            if adviser.role.name == 'Padre Espiritual':
+                qs = qs.filter(made_by=adviser)
+        except:
+            pass
+        return qs

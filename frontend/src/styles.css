@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root,
+[data-theme="light"] {
+  --color-primary: #000000;
+  --color-primary-hover: #333333;
+  --color-primary-light: #f5f5f5;
+  --color-accent: #ffffff;
+  --color-accent-hover: #e5e5e5;
+  --color-text: #171717;
+  --color-text-secondary: #737373;
+  --color-bg: #ffffff;
+  --color-bg-secondary: #f5f5f5;
+  --color-border: #e5e5e5;
+  --color-error: #dc2626;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+
+  --color-sidebar: #1a1a2e;
+  --color-sidebar-border: #2a2a3e;
+  --color-sidebar-text: #e5e5e5;
+  --color-sidebar-text-secondary: #9ca3af;
+  --color-sidebar-hover: #2a2a3e;
+  --color-sidebar-active: #4338ca;
+  --color-navbar: #1a1a2e;
+}
+
+[data-theme="dark"] {
+  --color-primary: #f5f5f5;
+  --color-primary-hover: #d4d4d4;
+  --color-primary-light: #2a2a3e;
+  --color-accent: #1e1e2e;
+  --color-accent-hover: #2a2a3e;
+  --color-text: #e5e5e5;
+  --color-text-secondary: #9ca3af;
+  --color-bg: #0f0f1a;
+  --color-bg-secondary: #1a1a2e;
+  --color-border: #2a2a3e;
+  --color-error: #f87171;
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+
+  --color-sidebar: #0f0f1a;
+  --color-sidebar-border: #1e1e2e;
+  --color-sidebar-text: #e5e5e5;
+  --color-sidebar-text-secondary: #9ca3af;
+  --color-sidebar-hover: #1e1e2e;
+  --color-sidebar-active: #4338ca;
+  --color-navbar: #0f0f1a;
+}
+
+.bg-primary { background-color: var(--color-primary); }
+.bg-primary-light { background-color: var(--color-primary-light); }
+.bg-accent { background-color: var(--color-accent); }
+.bg-secondary { background-color: var(--color-bg-secondary); }
+.text-primary { color: var(--color-primary); }
+.text-secondary { color: var(--color-text-secondary); }
+.text-on-primary { color: var(--color-accent); }
+.border-theme { border-color: var(--color-border); }
+.hover\:bg-primary-hover:hover { background-color: var(--color-primary-hover); }
+.hover\:bg-accent-hover:hover { background-color: var(--color-accent-hover); }
+
+.bg-sidebar { background-color: var(--color-sidebar); }
+.bg-navbar { background-color: var(--color-navbar); }
+.bg-sidebar-active { background-color: var(--color-sidebar-active); }
+.text-sidebar-text { color: var(--color-sidebar-text); }
+.text-sidebar-text-secondary { color: var(--color-sidebar-text-secondary); }
+.border-sidebar-border { border-color: var(--color-sidebar-border); }
+.hover\:bg-sidebar-hover:hover { background-color: var(--color-sidebar-hover); }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+}
