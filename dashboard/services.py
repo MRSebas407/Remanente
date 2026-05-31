@@ -1,5 +1,5 @@
-from django.utils import timezone
-from datetime import timedelta
+from django.utils import timezone, dateparse
+from datetime import timedelta, datetime
 from django.db.models import Count, Q
 from django.db.models.functions import TruncDate, TruncMonth, TruncYear
 from persons.models import Person
@@ -15,6 +15,8 @@ TRUNC_MAP = {
 
 def get_dashboard_data(start_date=None, end_date=None, period='monthly'):
     now = timezone.now()
+
+    # --- resolve start_date ---------------------------------------------------
     if not start_date:
         if period == 'weekly':
             start_date = now - timedelta(days=7)
@@ -25,12 +27,32 @@ def get_dashboard_data(start_date=None, end_date=None, period='monthly'):
         else:
             start_date = now - timedelta(days=30)
 
+    if isinstance(start_date, str):
+        p = dateparse.parse_date(start_date)
+        start_dt = datetime.combine(p, datetime.min.time()).replace(tzinfo=timezone.get_current_timezone()) if p else start_date
+    elif isinstance(start_date, datetime):
+        start_dt = start_date
+    else:
+        start_dt = start_date
+
+    # --- resolve end_date -----------------------------------------------------
     if not end_date:
-        end_date = now
+        end_dt = now
+    elif isinstance(end_date, str):
+        p = dateparse.parse_date(end_date)
+        if p:
+            # end_date inclusive → exclusive upper bound = < next day 00:00:00
+            end_dt = datetime.combine(p + timedelta(days=1), datetime.min.time()).replace(tzinfo=timezone.get_current_timezone())
+        else:
+            end_dt = end_date
+    elif isinstance(end_date, datetime):
+        end_dt = end_date
+    else:
+        end_dt = end_date
 
     qs = Person.objects.filter(
-        register_date__gte=start_date,
-        register_date__lte=end_date,
+        register_date__gte=start_dt,
+        register_date__lt=end_dt,
     )
 
     total = qs.count()

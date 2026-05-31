@@ -1,6 +1,6 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CallService } from './call.service';
 import { CallEntry, PendingCall } from './call.model';
@@ -17,7 +17,7 @@ import { DashboardService } from '../dashboard/dashboard.service';
 @Component({
   selector: 'app-call-list',
   standalone: true,
-  imports: [DatePipe, FormsModule, CallDetail, CallDetailView, CallEdit, CallForm],
+  imports: [DatePipe, NgClass, FormsModule, CallDetail, CallDetailView, CallEdit, CallForm],
   template: `
     <div class="p-4 sm:p-6 max-w-6xl mx-auto space-y-4">
       <div class="flex items-center justify-between">
@@ -31,11 +31,7 @@ import { DashboardService } from '../dashboard/dashboard.service';
         }
       </div>
 
-      <div class="grid grid-cols-2 lg:grid-cols-7 gap-3">
-        <div class="bg-accent rounded-xl border border-theme p-3">
-          <p class="text-xs text-secondary uppercase tracking-wide font-medium">Asignados</p>
-          <p class="text-2xl font-bold text-primary mt-0.5">{{ stats()?.total_assigned ?? 0 }}</p>
-        </div>
+      <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <div class="bg-accent rounded-xl border border-theme p-3">
           <p class="text-xs text-secondary uppercase tracking-wide font-medium">Pendientes</p>
           <p class="text-2xl font-bold text-amber-600 mt-0.5">{{ stats()?.pending_calls ?? 0 }}</p>
@@ -55,10 +51,6 @@ import { DashboardService } from '../dashboard/dashboard.service';
         <div class="bg-accent rounded-xl border border-theme p-3">
           <p class="text-xs text-secondary uppercase tracking-wide font-medium">No Efectivas</p>
           <p class="text-2xl font-bold text-red-600 mt-0.5">{{ stats()?.not_effective_calls ?? 0 }}</p>
-        </div>
-        <div class="bg-accent rounded-xl border border-theme p-3">
-          <p class="text-xs text-secondary uppercase tracking-wide font-medium">Bautizados</p>
-          <p class="text-2xl font-bold text-primary mt-0.5">{{ stats()?.baptized ?? 0 }}</p>
         </div>
       </div>
 
@@ -148,9 +140,10 @@ import { DashboardService } from '../dashboard/dashboard.service';
             }
             @for (c of calls(); track c.detail_id) {
               <tr class="border-b border-theme/50 transition-colors"
-                [class.bg-red-50]="!c.made"
-                [class.hover:bg-red-100]="!c.made"
-                [class.hover:bg-accent-hover/30]="c.made"
+                [ngClass]="{
+                  'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-800/30': !c.made,
+                  'hover:bg-accent-hover/30': c.made
+                }"
               >
                 <td class="px-3 py-3">
                   <span class="inline-block w-3 h-3 rounded-full"
@@ -177,12 +170,11 @@ import { DashboardService } from '../dashboard/dashboard.service';
                 </td>
                 <td class="px-3 py-3">
                   <span class="text-xs font-medium px-2 py-0.5 rounded-full"
-                    [class.bg-green-100]="c.state==='effective'"
-                    [class.text-green-700]="c.state==='effective'"
-                    [class.bg-red-100]="c.state==='not_effective'"
-                    [class.text-red-700]="c.state==='not_effective'"
-                    [class.bg-gray-100]="!c.made"
-                    [class.text-gray-500]="!c.made"
+                    [ngClass]="{
+                      'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400': c.state==='effective',
+                      'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400': c.state==='not_effective',
+                      'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400': !c.made
+                    }"
                   >{{ stateLabel(c) }}</span>
                 </td>
                 <td class="px-3 py-3 text-right whitespace-nowrap">
@@ -192,7 +184,7 @@ import { DashboardService } from '../dashboard/dashboard.service';
                     </button>
                     @if (!c.made) {
                     <button (click)="openDetail(c)" title="Registrar llamada"
-                      class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-blue-50 transition-colors text-blue-500">
+                      class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors text-blue-500">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     </button>
                     }

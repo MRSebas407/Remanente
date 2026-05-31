@@ -1,6 +1,8 @@
+import logging
 from rest_framework import serializers
 from .models import Person, SPECIALISM_MAP
 from baptisms.models import BaptismalRegister
+from accounts.models import Role, Specialism, Adviser
 
 
 class PersonSerializer(serializers.ModelSerializer):
@@ -8,6 +10,69 @@ class PersonSerializer(serializers.ModelSerializer):
         model = Person
         fields = '__all__'
         read_only_fields = ['assignment_state', 'member_state', 'register_date', 'spiritual_father']
+
+    def update(self, instance, validated_data):
+        old_specialism = instance.specialism
+        instance = super().update(instance, validated_data)
+        new_specialism = validated_data.get('specialism', old_specialism)
+
+        if new_specialism != old_specialism:
+            self._reassign_for_specialism(instance)
+
+        return instance
+
+    def _reassign_for_specialism(self, person):
+        from accounts.models import Role, Specialism as SpecialismModel, Adviser
+
+        current_father = person.spiritual_father
+
+        if current_father and current_father.role.name != 'Padre Espiritual':
+            return
+
+        spec_name = SPECIALISM_MAP.get(person.specialism, 'Normal')
+        person_gender = person.gender
+        if not person_gender and person.registered_by:
+            person_gender = person.registered_by.profile.gender
+
+        try:
+            specialism_obj = SpecialismModel.objects.get(name=spec_name, is_active=True)
+        except SpecialismModel.DoesNotExist:
+            self._clear_assignment(person, current_father)
+            return
+
+        role_sf = Role.objects.get(name='Padre Espiritual')
+
+        if current_father and current_father.specialism and current_father.specialism.name == spec_name:
+            return
+
+        candidates = Adviser.objects.filter(
+            role=role_sf,
+            specialism=specialism_obj,
+            is_active=True,
+            assigned_count__lt=3,
+            profile__gender=person_gender,
+        )
+
+        if candidates.exists():
+            new_father = candidates.first()
+            if current_father:
+                current_father.assigned_count = max(0, current_father.assigned_count - 1)
+                current_father.save()
+            person.spiritual_father = new_father
+            person.assignment_state = 'assigned'
+            new_father.assigned_count += 1
+            new_father.save()
+            person.save()
+        else:
+            self._clear_assignment(person, current_father)
+
+    def _clear_assignment(self, person, current_father):
+        if current_father:
+            current_father.assigned_count = max(0, current_father.assigned_count - 1)
+            current_father.save()
+        person.spiritual_father = None
+        person.assignment_state = 'pending'
+        person.save()
 
 
 class PersonCreateSerializer(serializers.ModelSerializer):
@@ -60,16 +125,22 @@ class PersonCreateSerializer(serializers.ModelSerializer):
         from django.utils import timezone
         from datetime import timedelta
 
+        if not person.spiritual_father:
+            return
+
         call = Call.objects.create(person=person, call_number=1)
         detail = CallDetail.objects.create(
             call=call,
-            made_by=person.spiritual_father or person.registered_by,
+            made_by=person.spiritual_father,
             scheduled_date=timezone.now() + timedelta(minutes=5)
         )
 
-        if person.spiritual_father:
-            from notifications.services import OpenWAService
-            OpenWAService().notify_assignment(person.spiritual_father, person, detail)
+        from notifications.services import OpenWAService
+        result = OpenWAService().notify_assignment(person.spiritual_father, person, detail)
+        if not result.get('success'):
+            logger = logging.getLogger(__name__)
+            logger.warning('Notification on person creation failed for %s: %s',
+                           person.spiritual_father, result.get('error'))
 
 
 class PersonListSerializer(serializers.ModelSerializer):

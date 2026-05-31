@@ -53,13 +53,14 @@ import {
           </div>
         </div>
 
-        @if (loading()) {
-          <div class="flex justify-center py-12">
-            <div class="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full"></div>
-          </div>
-        } @else {
+        <div class="relative">
+          @if (loading()) {
+            <div class="absolute inset-0 z-10 flex items-start justify-center pt-12 bg-accent/60 rounded-xl">
+              <div class="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full"></div>
+            </div>
+          }
           @if (isSpiritualFather && pendingCalls().length > 0) {
-            <div class="bg-accent rounded-xl border border-theme p-4">
+            <div class="bg-accent rounded-xl border border-theme p-4 mb-6">
               <h3 class="text-sm font-semibold text-primary mb-3">Llamadas Pendientes</h3>
               <div class="space-y-2">
                 @for (c of pendingCalls(); track c.detail_id) {
@@ -78,12 +79,12 @@ import {
                       [class.text-orange-600]="c.color==='orange'"
                       [class.text-red-600]="c.color==='red'"
                     >{{ remainingFromDate(c.scheduled_date) }}</span>
+                    </div>
+                    }
                   </div>
-                }
-              </div>
-            </div>
-          }
-          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                </div>
+              }
+              <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-accent rounded-xl border border-theme p-4">
               <p class="text-xs text-secondary uppercase tracking-wide font-medium">Consolidados</p>
               <p class="text-3xl font-bold text-primary mt-1">{{ data()?.summary?.total_registered ?? 0 }}</p>
@@ -112,7 +113,7 @@ import {
               <canvas #chartCanvas></canvas>
             </div>
           </div>
-        }
+        </div>
       </div>
     } @else {
       <div class="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">
@@ -128,27 +129,29 @@ import {
               <p class="text-3xl font-bold text-primary mt-1">{{ stats()?.total_assigned ?? 0 }}</p>
               <p class="text-xs text-secondary mt-1">Personas a cargo</p>
             </div>
-            <div class="bg-accent rounded-xl border border-theme p-4">
-              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Pendientes</p>
-              <p class="text-3xl font-bold text-amber-600 mt-1">{{ stats()?.pending_calls ?? 0 }}</p>
-              <p class="text-xs text-secondary mt-1">Llamadas por hacer</p>
-            </div>
-            <div class="bg-accent rounded-xl border border-theme p-4">
-              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Vencidas</p>
-              <p class="text-3xl font-bold text-red-600 mt-1">{{ stats()?.expired_calls ?? 0 }}</p>
-              <p class="text-xs text-secondary mt-1">Llamadas vencidas</p>
-            </div>
-            <div class="bg-accent rounded-xl border border-theme p-4">
-              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Realizadas</p>
-              <p class="text-3xl font-bold text-green-600 mt-1">{{ stats()?.made_calls ?? 0 }}</p>
-              <p class="text-xs text-secondary mt-1">Llamadas completadas</p>
-            </div>
-            <div class="bg-accent rounded-xl border border-theme p-4">
-              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Bautizados</p>
-              <p class="text-3xl font-bold text-primary mt-1">{{ stats()?.baptized ?? 0 }}</p>
-              <p class="text-xs text-secondary mt-1">Personas bautizadas</p>
-            </div>
+            @if (!isMaestro) {
+              <div class="bg-accent rounded-xl border border-theme p-4">
+                <p class="text-xs text-secondary uppercase tracking-wide font-medium">Pendientes</p>
+                <p class="text-3xl font-bold text-amber-600 mt-1">{{ stats()?.pending_calls ?? 0 }}</p>
+                <p class="text-xs text-secondary mt-1">Llamadas por hacer</p>
+              </div>
+              <div class="bg-accent rounded-xl border border-theme p-4">
+                <p class="text-xs text-secondary uppercase tracking-wide font-medium">Vencidas</p>
+                <p class="text-3xl font-bold text-red-600 mt-1">{{ stats()?.expired_calls ?? 0 }}</p>
+                <p class="text-xs text-secondary mt-1">Llamadas vencidas</p>
+              </div>
+              <div class="bg-accent rounded-xl border border-theme p-4">
+                <p class="text-xs text-secondary uppercase tracking-wide font-medium">Realizadas</p>
+                <p class="text-3xl font-bold text-green-600 mt-1">{{ stats()?.made_calls ?? 0 }}</p>
+                <p class="text-xs text-secondary mt-1">Llamadas completadas</p>
+              </div>
+            }
             @if (isMaestro) {
+              <div class="bg-accent rounded-xl border border-theme p-4">
+                <p class="text-xs text-secondary uppercase tracking-wide font-medium">Bautizados</p>
+                <p class="text-3xl font-bold text-primary mt-1">{{ stats()?.baptized ?? 0 }}</p>
+                <p class="text-xs text-secondary mt-1">Personas bautizadas</p>
+              </div>
               <div class="bg-accent rounded-xl border border-theme p-4">
                 <p class="text-xs text-secondary uppercase tracking-wide font-medium">Pend. Bautizo</p>
                 <p class="text-3xl font-bold text-amber-600 mt-1">{{ stats()?.pending_baptism ?? 0 }}</p>
@@ -211,16 +214,22 @@ export class Dashboard implements OnInit, OnDestroy {
   }
 
   private loadAdminData(): void {
+    this.chart?.destroy();
+    this.chart = null;
     this.loading.set(true);
     this.dashboardService
       .getReport(this.selectedPeriod, this.startDate || undefined, this.endDate || undefined)
-      .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: (res) => {
           this.data.set(res);
-          this.renderChart();
+          this.loading.set(false);
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => this.renderChart());
+          });
         },
-        error: () => {
+        error: (err) => {
+          console.error('Error loading dashboard data:', err);
+          this.loading.set(false);
           this.toast.error('Error al cargar datos del dashboard');
         },
       });
@@ -298,6 +307,7 @@ export class Dashboard implements OnInit, OnDestroy {
     try {
       const canvasEl = this.chartCanvas();
       if (!canvasEl) {
+        console.warn('Canvas not found in DOM');
         this.chart?.destroy();
         this.chart = null;
         return;
@@ -398,7 +408,8 @@ export class Dashboard implements OnInit, OnDestroy {
           },
         });
       }
-    } catch {
+    } catch (e) {
+      console.error('Error rendering chart:', e);
       this.chart?.destroy();
       this.chart = null;
     }

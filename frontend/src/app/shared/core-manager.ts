@@ -300,7 +300,6 @@ export class CoreManager implements OnInit {
     { key: 'services', label: 'Servicios' },
   ];
   activeTab = signal('countries');
-  private tabLoaded: Record<string, boolean> = {};
 
   countries = signal<Country[]>([]);
   addingCountry = signal(false);
@@ -340,14 +339,11 @@ export class CoreManager implements OnInit {
 
   switchTab(key: string): void {
     this.activeTab.set(key);
-    if (!this.tabLoaded[key]) {
-      this.tabLoaded[key] = true;
-      switch (key) {
-        case 'countries': this.loadCountries(); break;
-        case 'cities': this.loadCities(); break;
-        case 'neighborhoods': this.loadNeighborhoods(); break;
-        case 'services': this.loadServices(); break;
-      }
+    switch (key) {
+      case 'countries': this.loadCountries(); break;
+      case 'cities': this.loadCities(); this.loadCountries(); break;
+      case 'neighborhoods': this.loadNeighborhoods(); this.loadCities(); break;
+      case 'services': this.loadServices(); break;
     }
   }
 

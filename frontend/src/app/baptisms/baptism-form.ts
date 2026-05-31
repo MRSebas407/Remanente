@@ -1,4 +1,4 @@
-import { Component, inject, input, output, signal, OnInit, viewChild, ElementRef } from '@angular/core';
+import { Component, inject, input, output, signal, OnInit, viewChild, ElementRef, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BaptismService } from './baptism.service';
 import { BaptismRegister, PendingPerson, TeacherEntry, Attendant, Calendar, Mode, ClassEntry } from './baptism.model';
@@ -210,6 +210,7 @@ export class BaptismForm implements OnInit {
   private service = inject(BaptismService);
   private auth = inject(AuthService);
   private toast = inject(ToastService);
+  private cdr = inject(ChangeDetectorRef);
 
   registerId = input<number | null>(null);
   close = output();
@@ -356,34 +357,50 @@ export class BaptismForm implements OnInit {
     reader.readAsDataURL(file);
   }
 
-  openCamera(): void {
+  async openCamera(): Promise<void> {
     this.cameraOpen = true;
     this.photoCaptured = false;
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(stream => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       this.mediaStream = stream;
-      setTimeout(() => {
-        const video = this.videoEl()?.nativeElement;
-        if (video) video.srcObject = stream;
-      });
-    }).catch(() => this.toast.error('No se pudo abrir la cámara'));
+      const video = this.videoEl()?.nativeElement;
+      if (video) {
+        video.srcObject = stream;
+        await new Promise<void>((resolve) => {
+          if (video.videoWidth > 0) return resolve();
+          video.addEventListener('loadedmetadata', () => resolve(), { once: true });
+        });
+        await video.play();
+      }
+    } catch {
+      this.toast.error('No se pudo abrir la cámara');
+    }
   }
 
   capturePhoto(): void {
     const video = this.videoEl()?.nativeElement;
-    if (!video) return;
+    if (!video) { requestAnimationFrame(() => this.capturePhoto()); return; }
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d')!.drawImage(video, 0, 0);
-    canvas.toBlob(blob => {
-      if (!blob) return;
-      this.photoFile = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
-      this.photoFileName = 'photo.jpg';
-      const reader = new FileReader();
-      reader.onload = () => { this.photoPreviewUrl = reader.result as string; };
-      reader.readAsDataURL(blob);
-      this.photoCaptured = true;
-    }, 'image/jpeg');
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    try { ctx.drawImage(video, 0, 0); } catch { requestAnimationFrame(() => this.capturePhoto()); return; }
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    this.photoFile = this.dataUrlToFile(dataUrl, 'photo.jpg');
+    this.photoFileName = 'photo.jpg';
+    this.photoPreviewUrl = dataUrl;
+    this.photoCaptured = true;
+    this.cdr.detectChanges();
+  }
+
+  private dataUrlToFile(dataUrl: string, filename: string): File {
+    const arr = dataUrl.split(',');
+    const mime = arr[0].match(/:(.*?);/)![1];
+    const bstr = atob(arr[1]);
+    const u8arr = new Uint8Array(bstr.length);
+    for (let i = 0; i < bstr.length; i++) u8arr[i] = bstr.charCodeAt(i);
+    return new File([u8arr], filename, { type: mime });
   }
 
   retakePhoto(): void {

@@ -8,6 +8,7 @@ Sistema de gestión para iglesias — seguimiento de nuevos miembros, llamadas d
 - **Autenticación:** JWT (SimpleJWT)
 - **Base de datos:** PostgreSQL 16
 - **WhatsApp:** OpenWA (API auto-hosted)
+- **Frontend:** Angular 20 + TailwindCSS
 - **Contenedores:** Docker + Docker Compose
 
 ## Requisitos
@@ -188,4 +189,21 @@ pip install -r requirements.txt
 python manage.py migrate
 python manage.py seed_data
 python manage.py runserver
+```
+
+## Frontend (Angular 20)
+
+```bash
+cd frontend
+npm install     # solo la primera vez
+ng serve        # http://localhost:4200
+```
+
+El frontend espera la API en `http://localhost:8000` (proxy configurado en `angular.json`).
+
+### Build producción
+
+```bash
+ng build
+python serve.py 4200   # sirve dist/ en http://localhost:4200
 ```

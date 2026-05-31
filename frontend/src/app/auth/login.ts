@@ -17,6 +17,18 @@ import { ChangePassword } from '../shared/change-password';
       <div
         class="w-full max-w-md bg-accent rounded-xl shadow-lg p-8 border border-theme"
       >
+        <div class="flex justify-end mb-2">
+          <button (click)="toggleTheme()" class="text-xs px-3 py-1.5 rounded-lg border border-theme hover:bg-accent-hover transition-colors text-secondary flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              @if (isDark()) {
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+              } @else {
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+              }
+            </svg>
+            {{ isDark() ? 'Claro' : 'Oscuro' }}
+          </button>
+        </div>
         <div class="text-center mb-8">
           <h1 class="text-2xl font-bold text-primary">App Iglesia</h1>
           <p class="text-secondary mt-1 text-sm">Inicia sesión para continuar</p>
@@ -95,6 +107,23 @@ export class Login {
   loading = signal(false);
   error = signal('');
   showForcePassword = signal(false);
+  isDark = signal(localStorage.getItem('theme') === 'dark');
+
+  constructor() {
+    this.applyTheme();
+  }
+
+  private applyTheme(): void {
+    const dark = this.isDark();
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    document.body.style.backgroundColor = dark ? '#0f0f1a' : '#f5f5f5';
+  }
+
+  toggleTheme(): void {
+    this.isDark.update(v => !v);
+    localStorage.setItem('theme', this.isDark() ? 'dark' : 'light');
+    this.applyTheme();
+  }
 
   onSubmit(): void {
     if (!this.username || !this.password) return;

@@ -57,7 +57,7 @@ class Command(BaseCommand):
             user = User.objects.create_user('padre1', 'padre1@iglesia.com', '123456')
             reg = RegisterUser.objects.create(
                 user=user, names='Carlos', last_name='Gómez',
-                document='1000000001', phone='0999000001', gender='M',
+                document='1000000001', phone='3209990001', gender='M',
             )
             Adviser.objects.create(
                 profile=reg, role=pf_role,
@@ -69,7 +69,7 @@ class Command(BaseCommand):
             user = User.objects.create_user('padre2', 'padre2@iglesia.com', '123456')
             reg = RegisterUser.objects.create(
                 user=user, names='María', last_name='López',
-                document='1000000002', phone='0999000002', gender='F',
+                document='1000000002', phone='3209990002', gender='F',
             )
             Adviser.objects.create(
                 profile=reg, role=pf_role,
@@ -81,7 +81,7 @@ class Command(BaseCommand):
             user = User.objects.create_user('maestro1', 'maestro1@iglesia.com', '123456')
             reg = RegisterUser.objects.create(
                 user=user, names='Pedro', last_name='Ramírez',
-                document='1000000003', phone='0999000003', gender='M',
+                document='1000000003', phone='3209990003', gender='M',
             )
             Adviser.objects.create(
                 profile=reg, role=teacher_role,

@@ -25,6 +25,9 @@ export class AuthService {
           localStorage.setItem(this.TOKEN_KEY, res.access);
           localStorage.setItem(this.REFRESH_KEY, res.refresh);
           localStorage.setItem(this.USER_KEY, JSON.stringify(res.user));
+          if (res.user.theme) {
+            localStorage.setItem('theme', res.user.theme);
+          }
         })
       );
   }

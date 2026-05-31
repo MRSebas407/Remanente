@@ -1,5 +1,13 @@
+import logging
+import re
+import time
 import requests
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
+
+PENDING = frozenset({'starting', 'loading', 'initializing', 'browser'})
+READY = frozenset({'connected', 'ready'})
 
 
 class OpenWAService:
@@ -9,77 +17,143 @@ class OpenWAService:
         self.session_id = None
         self._api_key = None
         self.headers = {}
+        self._init_headers()
 
-    @property
-    def api_key(self):
-        if self._api_key is None:
-            from notifications.openwa_db import get_api_key
-            self._api_key = get_api_key() or settings.OPENWA_API_KEY
-            self.headers = {
-                'X-API-Key': self._api_key,
-                'Content-Type': 'application/json',
-            }
-        return self._api_key
+    def _init_headers(self):
+        from notifications.openwa_db import get_api_key
+        self._api_key = get_api_key() or settings.OPENWA_API_KEY
+        self.headers = {
+            'X-API-Key': self._api_key,
+            'Content-Type': 'application/json',
+        }
+
+    def _request(self, method, path, **kwargs):
+        url = f'{self.base_url}{path}'
+        kwargs.setdefault('headers', self.headers)
+        kwargs.setdefault('timeout', 15)
+        try:
+            return requests.request(method, url, **kwargs)
+        except requests.RequestException as e:
+            logger.warning('OpenWA request failed %s %s: %s', method, path, e)
+            return None
 
     def _resolve_session(self):
         """Find session UUID by name."""
         if self.session_id:
             return self.session_id
-        try:
-            resp = requests.get(
-                f'{self.base_url}/sessions',
-                headers={'X-API-Key': self.api_key},
-                timeout=10,
-            )
-            if resp.status_code != 200:
-                return None
-            for s in resp.json():
-                if s.get('name') == self.session_name:
-                    self.session_id = s['id']
-                    return self.session_id
-        except requests.RequestException:
-            pass
+        resp = self._request('GET', '/sessions', timeout=10)
+        if not resp or resp.status_code != 200:
+            logger.warning('OpenWA list sessions returned %s', getattr(resp, 'status_code', None))
+            return None
+        for s in resp.json():
+            if s.get('name') == self.session_name:
+                self.session_id = s['id']
+                logger.info('OpenWA session resolved: %s (status=%s)', s['id'], s.get('status'))
+                return self.session_id
+        logger.warning('OpenWA session "%s" not found among %d sessions', self.session_name, len(resp.json()))
         return None
+
+    def _reset_session(self):
+        """Delete stale session and create a fresh one. Returns new session id or None."""
+        old_id = self._resolve_session()
+        if old_id:
+            logger.info('OpenWA deleting stale session %s', old_id)
+            self._request('POST', f'/sessions/{old_id}/logout')
+            time.sleep(1)
+            self._request('DELETE', f'/sessions/{old_id}')
+            time.sleep(2)
+        self.session_id = None
+        for _ in range(3):
+            resp = self._request('POST', '/sessions', json={'name': self.session_name})
+            if resp and resp.status_code in (200, 201):
+                session = resp.json()
+                time.sleep(2)
+                self._request('POST', f'/sessions/{session["id"]}/start')
+                self.session_id = session['id']
+                return self.session_id
+            time.sleep(3)
+        return None
+
+    def session_status(self) -> str | None:
+        """Get current session status string (connected/qr_ready/etc)."""
+        sid = self._resolve_session()
+        if not sid:
+            return None
+        resp = self._request('GET', f'/sessions/{sid}')
+        if resp and resp.status_code == 200:
+            return resp.json().get('status')
+        logger.warning('OpenWA session status request returned %s', getattr(resp, 'status_code', None))
+        return None
+
+    def ensure_ready(self) -> bool:
+        """Make sure OpenWA session is ready. Returns True if ready to send."""
+        status = self.session_status()
+        if status in READY:
+            return True
+        if status in PENDING:
+            logger.info('OpenWA session is "%s", not resetting — try again later', status)
+            return False
+        if status:
+            logger.info('OpenWA session status is "%s", resetting...', status)
+        self._reset_session()
+        status = self.session_status()
+        return status in READY
 
     def _format_phone(self, phone: str) -> str:
         """Convert local phone to WhatsApp format (e.g. 573209999999@c.us)."""
         if not phone:
             return None
         country_code = getattr(settings, 'OPENWA_COUNTRY_CODE', '57')
-        phone = phone.strip()
+        phone = re.sub(r'[^\d]', '', phone.strip())
+        if not phone:
+            return None
+        if phone.startswith('00'):
+            phone = phone[2:]
         if phone.startswith('0'):
-            phone = country_code + phone[1:]
-        elif not phone.startswith(country_code):
+            phone = phone[1:]
+        if not phone.startswith(country_code):
             phone = country_code + phone
         return f'{phone}@c.us'
 
     def send_text(self, phone: str, message: str) -> dict:
         """Send a text message via OpenWA."""
-        session_id = self._resolve_session()
-        if not session_id:
-            return {'success': False, 'error': 'No active session found'}
+        status = self.session_status()
+        if status in READY:
+            pass
+        elif status in PENDING:
+            return {'success': False, 'error': f'Session {status}, try again later'}
+        else:
+            if status:
+                logger.info('send_text: session status "%s", resetting...', status)
+            self._reset_session()
+            status = self.session_status()
+            if status not in READY:
+                return {'success': False, 'error': f'Session not ready (status={status})'}
 
         chat_id = self._format_phone(phone)
         if not chat_id:
             return {'success': False, 'error': 'Invalid phone number'}
 
-        url = f'{self.base_url}/sessions/{session_id}/messages/send-text'
         payload = {'chatId': chat_id, 'text': message}
+        resp = self._request('POST',
+            f'/sessions/{self.session_id}/messages/send-text',
+            json=payload)
 
-        try:
-            resp = requests.post(url, json=payload, headers=self.headers, timeout=15)
-            resp.raise_for_status()
+        if resp and resp.status_code in (200, 201):
+            logger.info('Message sent to %s', chat_id)
             return {'success': True, 'data': resp.json()}
-        except requests.RequestException as e:
-            return {'success': False, 'error': str(e)}
+
+        err = resp.text[:500] if resp else 'No response'
+        logger.warning('Send to %s failed (status=%s): %s', chat_id,
+                       resp.status_code if resp else 'N/A', err)
+        return {'success': False, 'error': err}
 
     def health_check(self) -> bool:
         """Check if OpenWA API is reachable."""
-        try:
-            resp = requests.get(f'{self.base_url}/health', timeout=(3, 5))
-            return resp.status_code == 200
-        except requests.RequestException:
-            return False
+        resp = self._request('GET', '/health', timeout=(3, 5))
+        ok = bool(resp and resp.status_code == 200)
+        logger.debug('OpenWA health check: %s', 'ok' if ok else 'fail')
+        return ok
 
     def _format_tiempo(self, delta) -> str:
         horas = delta.total_seconds() / 3600

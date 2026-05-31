@@ -39,6 +39,7 @@ class AuthViewSet(viewsets.ViewSet):
             adviser_id = None
             theme = 'light'
         refresh = RefreshToken.for_user(user)
+        photo_url = request.build_absolute_uri(user.register_profile.photo.url) if user.register_profile.photo else None
         return Response({
             'access': str(refresh.access_token),
             'refresh': str(refresh),
@@ -50,6 +51,7 @@ class AuthViewSet(viewsets.ViewSet):
                 'adviser_id': adviser_id,
                 'must_change_password': user.must_change_password,
                 'theme': theme,
+                'photo': photo_url,
             }
         })
 

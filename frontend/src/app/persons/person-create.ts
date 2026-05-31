@@ -532,40 +532,49 @@ export class PersonCreate implements OnInit {
   async openCamera(): Promise<void> {
     this.cameraOpen = true;
     this.photoCaptured = false;
+    this.cdr.detectChanges();
     try {
-      this.mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      this.cdr.detectChanges();
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      this.mediaStream = stream;
       const video = this.videoEl()?.nativeElement;
       if (video) {
-        video.srcObject = this.mediaStream;
+        video.srcObject = stream;
+        await new Promise<void>((resolve) => {
+          if (video.videoWidth > 0) return resolve();
+          video.addEventListener('loadedmetadata', () => resolve(), { once: true });
+        });
+        await video.play();
       }
     } catch {
+      this.toast.error('No se pudo acceder a la cámara');
       this.cameraOpen = false;
-      this.toast.error('No se pudo acceder a la cámara. Verifica los permisos.');
     }
   }
 
   capturePhoto(): void {
     const video = this.videoEl()?.nativeElement;
-    if (!video) return;
+    if (!video) { requestAnimationFrame(() => this.capturePhoto()); return; }
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
-      this.photoFile = file;
-      this.photoFileName = file.name;
-      this.photoCaptured = true;
-      const reader = new FileReader();
-      reader.onload = () => {
-        this.photoPreviewUrl = reader.result as string;
-      };
-      reader.readAsDataURL(file);
-    }, 'image/jpeg', 0.92);
+    try { ctx.drawImage(video, 0, 0); } catch { requestAnimationFrame(() => this.capturePhoto()); return; }
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    this.photoFile = this.dataUrlToFile(dataUrl, 'photo.jpg');
+    this.photoFileName = 'photo.jpg';
+    this.photoPreviewUrl = dataUrl;
+    this.photoCaptured = true;
+    this.cdr.detectChanges();
+  }
+
+  private dataUrlToFile(dataUrl: string, filename: string): File {
+    const arr = dataUrl.split(',');
+    const mime = arr[0].match(/:(.*?);/)![1];
+    const bstr = atob(arr[1]);
+    const u8arr = new Uint8Array(bstr.length);
+    for (let i = 0; i < bstr.length; i++) u8arr[i] = bstr.charCodeAt(i);
+    return new File([u8arr], filename, { type: mime });
   }
 
   retakePhoto(): void {

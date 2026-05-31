@@ -11,4 +11,5 @@ export interface UserInfo {
   adviser_id: number | null;
   must_change_password: boolean;
   theme: string;
+  photo?: string | null;
 }

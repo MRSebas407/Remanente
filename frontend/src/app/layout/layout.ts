@@ -29,7 +29,7 @@ interface MenuItem {
           @if (sidebarHover) {
             <span class="font-bold text-lg text-sidebar-text whitespace-nowrap">App Iglesia</span>
           } @else {
-            <img src="logo.png" alt="AI" class="h-8 w-8 mx-auto" />
+            <img src="logo.png" alt="AI" width="32" height="32" class="h-8 w-8 mx-auto" />
           }
         </div>
         <nav class="flex-1 p-2 space-y-1 overflow-y-auto overflow-x-hidden">
@@ -86,9 +86,13 @@ interface MenuItem {
           <div class="flex-1"></div>
           <div class="relative">
             <button (click)="dropdownOpen.set(!dropdownOpen())" class="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-sidebar-hover transition-colors">
-              <div class="w-7 h-7 rounded-full bg-sidebar-text text-navbar flex items-center justify-center text-xs font-bold shrink-0">
-                {{ initials }}
-              </div>
+              @if (userPhoto()) {
+                <img [src]="userPhoto()" class="w-7 h-7 rounded-full object-cover shrink-0" />
+              } @else {
+                <div class="w-7 h-7 rounded-full bg-sidebar-text text-navbar flex items-center justify-center text-xs font-bold shrink-0">
+                  {{ initials }}
+                </div>
+              }
               <div class="text-left hidden sm:block">
                 <p class="text-sm font-medium text-sidebar-text leading-tight">{{ userName }}</p>
                 <p class="text-xs text-sidebar-text-secondary leading-tight">{{ userRole }}</p>
@@ -170,6 +174,7 @@ export class Layout implements OnInit {
   userName = this.auth.getUserName() || 'Usuario';
   userRole = this.auth.getUserRole() || '';
   initials = (this.userName[0] || 'U').toUpperCase();
+  userPhoto = signal<string | null>(this.auth.getUserInfo()?.photo || null);
 
   menuItems: MenuItem[] = [];
 
@@ -178,8 +183,35 @@ export class Layout implements OnInit {
   }
 
   ngOnInit(): void {
-    this.currentTheme = this.auth.getUserInfo()?.theme || 'light';
+    this.currentTheme = localStorage.getItem('theme') || this.auth.getUserInfo()?.theme || 'light';
     this.applyTheme();
+    this.refreshPhoto();
+    this.router.events.subscribe(() => {
+      this.refreshPhoto();
+    });
+    window.addEventListener('profile-photo-changed', ((e: CustomEvent) => {
+      this.userPhoto.set(e.detail || null);
+    }) as EventListener);
+  }
+
+  private refreshPhoto(): void {
+    const stored = this.auth.getUserInfo()?.photo;
+    if (stored) {
+      this.userPhoto.set(stored);
+    } else if (this.auth.getToken()) {
+      this.auth.getProfile().subscribe({
+        next: (res) => {
+          if (res?.photo) {
+            const info = this.auth.getUserInfo();
+            if (info) {
+              info.photo = res.photo;
+              localStorage.setItem('user_info', JSON.stringify(info));
+              this.userPhoto.set(res.photo);
+            }
+          }
+        },
+      });
+    }
   }
 
   private iconCache = new Map<string, SafeHtml>();
@@ -206,27 +238,33 @@ export class Layout implements OnInit {
   }
 
   private saveTheme(): void {
+    localStorage.setItem('theme', this.currentTheme);
     const fd = new FormData();
     fd.append('theme', this.currentTheme);
-    this.auth.updateProfile(fd).subscribe();
+    this.auth.updateProfile(fd).subscribe({
+      next: () => {
+        const info = this.auth.getUserInfo();
+        if (info) {
+          info.theme = this.currentTheme;
+          localStorage.setItem('user_info', JSON.stringify(info));
+        }
+      },
+    });
   }
 
   private buildMenu(): void {
     const items: MenuItem[] = [
       { path: '/', label: 'Dashboard', icon: 'dashboard', exact: true },
       { path: '/persons', label: 'Personas', icon: 'persons', exact: false },
-      { path: '/calls', label: 'Llamadas', icon: 'calls', exact: false },
     ];
+    if (this.userRole !== 'Maestro') {
+      items.push({ path: '/calls', label: 'Llamadas', icon: 'calls', exact: false });
+    }
     if (this.userRole === 'Administrador' || this.userRole === 'Maestro') {
       items.push({ path: '/baptisms', label: 'Bautizos', icon: 'baptism', exact: false });
     }
     if (this.userRole === 'Administrador') {
-      items.push({
-        label: 'Asesores', icon: 'user', exact: false,
-        children: [
-          { path: '/advisers', label: 'Listado', icon: 'menu', exact: false },
-        ],
-      });
+      items.push({ path: '/advisers', label: 'Asesores', icon: 'user', exact: false });
     }
     this.menuItems = items;
   }

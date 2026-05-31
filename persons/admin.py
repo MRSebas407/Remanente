@@ -52,11 +52,11 @@ class PersonAdmin(admin.ModelAdmin):
         from django.utils import timezone
         from datetime import timedelta
 
-        if person.calls.exists():
+        if not person.spiritual_father or person.calls.exists():
             return
         call = Call.objects.create(person=person, call_number=1)
         CallDetail.objects.create(
             call=call,
-            made_by=person.spiritual_father or person.registered_by,
+            made_by=person.spiritual_father,
             scheduled_date=timezone.now() + timedelta(minutes=5)
         )

@@ -25,6 +25,9 @@ class NotificationsConfig(AppConfig):
         from notifications.openwa_db import get_api_key
         from time import sleep
 
+        PENDING = frozenset({'starting', 'loading', 'initializing', 'browser'})
+        READY = frozenset({'connected', 'ready'})
+
         sleep(15)
         BASE = settings.OPENWA_BASE_URL.rstrip('/')
         name = settings.OPENWA_SESSION_ID
@@ -37,9 +40,9 @@ class NotificationsConfig(AppConfig):
                     sleep(10)
                     continue
                 for s in resp.json():
-                    if s.get('name') == name and s.get('status') not in ('connected',):
+                    if s.get('name') == name and s.get('status') not in READY and s.get('status') not in PENDING:
                         requests.post(f'{BASE}/sessions/{s["id"]}/start',
-                                      headers={'X-API-Key': key}, timeout=15)
+                                       headers={'X-API-Key': key}, timeout=15)
                 break
             except Exception:
                 sleep(10)

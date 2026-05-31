@@ -500,23 +500,38 @@ export class AdviserCreate implements OnInit {
     const video = this.videoEl()?.nativeElement;
     if (!video) return;
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
-      this.photoFile = file;
-      this.photoFileName = file.name;
-      this.photoCaptured = true;
-      const reader = new FileReader();
-      reader.onload = () => {
-        this.photoPreviewUrl = reader.result as string;
-      };
-      reader.readAsDataURL(file);
-    }, 'image/jpeg', 0.92);
+    try {
+      ctx.drawImage(video, 0, 0);
+    } catch {
+      requestAnimationFrame(() => {
+        try {
+          ctx.drawImage(video, 0, 0);
+        } catch {}
+      });
+    }
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    const blob = this.dataUrlToBlob(dataUrl);
+    const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+    this.photoFile = file;
+    this.photoFileName = file.name;
+    this.photoCaptured = true;
+    this.photoPreviewUrl = dataUrl;
+    this.cdr.detectChanges();
+  }
+
+  private dataUrlToBlob(dataUrl: string): Blob {
+    const parts = dataUrl.split(',');
+    const mime = parts[0].match(/:(.*?);/)![1];
+    const raw = atob(parts[1]);
+    const arr = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) {
+      arr[i] = raw.charCodeAt(i);
+    }
+    return new Blob([arr], { type: mime });
   }
 
   retakePhoto(): void {

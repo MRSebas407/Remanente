@@ -1,3 +1,4 @@
+import logging
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -5,6 +6,8 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 from .models import Person
 from .serializers import PersonSerializer, PersonCreateSerializer, PersonListSerializer, PersonDetailSerializer, SPECIALISM_MAP
+
+logger = logging.getLogger(__name__)
 
 
 class PersonViewSet(viewsets.ModelViewSet):
@@ -123,7 +126,10 @@ class PersonViewSet(viewsets.ModelViewSet):
 
         if detail:
             from notifications.services import OpenWAService
-            OpenWAService().notify_assignment(new_father, person, detail)
+            result = OpenWAService().notify_assignment(new_father, person, detail)
+            if not result.get('success'):
+                logger.warning('Notification assign_spiritual_father failed for adviser %s: %s',
+                               new_father.id, result.get('error'))
 
         return Response({'message': 'Asignado correctamente', 'warnings': warnings})
 
@@ -164,7 +170,10 @@ class PersonViewSet(viewsets.ModelViewSet):
             person.assignment_state = 'assigned'
             person.save()
             from notifications.services import OpenWAService
-            OpenWAService().notify_assignment(maestro, person, None)
+            result = OpenWAService().notify_assignment(maestro, person, None)
+            if not result.get('success'):
+                logger.warning('Notification enroll_fundamentals failed for maestro %s: %s',
+                               maestro.id, result.get('error'))
         else:
             person.save()
 

@@ -1,3 +1,4 @@
+import logging
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -8,6 +9,8 @@ from datetime import timedelta
 from config.pagination import FlexiblePageNumberPagination
 from .models import Call, CallDetail
 from .serializers import CallSerializer, CallDetailSerializer
+
+logger = logging.getLogger(__name__)
 
 
 class IsAdminOrSpiritualFather(BasePermission):
@@ -78,10 +81,12 @@ class CallViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save(made=True, date_made=timezone.now())
 
-        # Notificar al asesor según la llamada registrada
         if call.call_number in (1, 2):
             from notifications.services import OpenWAService
-            OpenWAService().notify_call_recorded(adviser, call.person, call.call_number)
+            result = OpenWAService().notify_call_recorded(adviser, call.person, call.call_number)
+            if not result.get('success'):
+                logger.warning('Notification record_call #%s failed for adviser %s: %s',
+                               call.call_number, adviser.id, result.get('error'))
 
         # Auto-crear siguiente llamada si corresponde
         if call.call_number < 3:
@@ -107,7 +112,10 @@ class CallViewSet(viewsets.ModelViewSet):
                     person.spiritual_father.save()
                 person.save()
                 from notifications.services import OpenWAService
-                OpenWAService().notify_third_call_completed(adviser, person)
+                result = OpenWAService().notify_third_call_completed(adviser, person)
+                if not result.get('success'):
+                    logger.warning('Notification third_call_completed failed for adviser %s: %s',
+                                   adviser.id, result.get('error'))
 
         return Response(serializer.data)
 
