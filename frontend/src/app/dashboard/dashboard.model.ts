@@ -3,6 +3,7 @@ export interface DashboardSummary {
   new_people: number;
   other_church: number;
   effective: number;
+  not_effective: number;
   baptized: number;
 }
 
@@ -12,6 +13,7 @@ export interface TrendEntry {
   new_people: number;
   other_church: number;
   effective: number;
+  not_effective: number;
   baptized: number;
 }
 

@@ -100,7 +100,7 @@ import ChartDataLabels from 'chartjs-plugin-datalabels';
                   </div>
                 </div>
               }
-              <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+              <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <div class="bg-accent rounded-xl border border-theme p-4 cursor-pointer transition-opacity"
               (click)="toggleDataset('total_registered', data()?.summary?.total_registered ?? 0)"
               [class.opacity-40]="!visibleDatasets()['total_registered'] || (data()?.summary?.total_registered ?? 0) === 0">
@@ -112,28 +112,35 @@ import ChartDataLabels from 'chartjs-plugin-datalabels';
               (click)="toggleDataset('new_people', data()?.summary?.new_people ?? 0)"
               [class.opacity-40]="!visibleDatasets()['new_people'] || (data()?.summary?.new_people ?? 0) === 0">
               <p class="text-xs text-secondary uppercase tracking-wide font-medium">Nuevos</p>
-              <p class="text-3xl font-bold text-primary mt-1">{{ data()?.summary?.new_people ?? 0 }}</p>
+              <p class="text-3xl font-bold text-green-600 mt-1">{{ data()?.summary?.new_people ?? 0 }}</p>
               <p class="text-xs text-secondary mt-1">No viene de otra iglesia</p>
             </div>
             <div class="bg-accent rounded-xl border border-theme p-4 cursor-pointer transition-opacity"
               (click)="toggleDataset('other_church', data()?.summary?.other_church ?? 0)"
               [class.opacity-40]="!visibleDatasets()['other_church'] || (data()?.summary?.other_church ?? 0) === 0">
               <p class="text-xs text-secondary uppercase tracking-wide font-medium">Otra Iglesia</p>
-              <p class="text-3xl font-bold text-primary mt-1">{{ data()?.summary?.other_church ?? 0 }}</p>
+              <p class="text-3xl font-bold text-purple-600 mt-1">{{ data()?.summary?.other_church ?? 0 }}</p>
               <p class="text-xs text-secondary mt-1">Viene de otra iglesia</p>
             </div>
             <div class="bg-accent rounded-xl border border-theme p-4 cursor-pointer transition-opacity"
               (click)="toggleDataset('effective', data()?.summary?.effective ?? 0)"
               [class.opacity-40]="!visibleDatasets()['effective'] || (data()?.summary?.effective ?? 0) === 0">
               <p class="text-xs text-secondary uppercase tracking-wide font-medium">Efectivos</p>
-              <p class="text-3xl font-bold text-primary mt-1">{{ data()?.summary?.effective ?? 0 }}</p>
+              <p class="text-3xl font-bold text-blue-600 mt-1">{{ data()?.summary?.effective ?? 0 }}</p>
               <p class="text-xs text-secondary mt-1">Permanecen en la iglesia</p>
+            </div>
+            <div class="bg-accent rounded-xl border border-theme p-4 cursor-pointer transition-opacity"
+              (click)="toggleDataset('not_effective', data()?.summary?.not_effective ?? 0)"
+              [class.opacity-40]="!visibleDatasets()['not_effective'] || (data()?.summary?.not_effective ?? 0) === 0">
+              <p class="text-xs text-secondary uppercase tracking-wide font-medium">No Efectivos</p>
+              <p class="text-3xl font-bold text-red-600 mt-1">{{ data()?.summary?.not_effective ?? 0 }}</p>
+              <p class="text-xs text-secondary mt-1">No permanecen en la iglesia</p>
             </div>
             <div class="bg-accent rounded-xl border border-theme p-4 cursor-pointer transition-opacity"
               (click)="toggleDataset('baptized', data()?.summary?.baptized ?? 0)"
               [class.opacity-40]="!visibleDatasets()['baptized'] || (data()?.summary?.baptized ?? 0) === 0">
               <p class="text-xs text-secondary uppercase tracking-wide font-medium">Bautizados</p>
-              <p class="text-3xl font-bold text-primary mt-1">{{ data()?.summary?.baptized ?? 0 }}</p>
+              <p class="text-3xl font-bold text-amber-600 mt-1">{{ data()?.summary?.baptized ?? 0 }}</p>
               <p class="text-xs text-secondary mt-1">Bautizados</p>
             </div>
           </div>
@@ -216,6 +223,7 @@ export class Dashboard implements OnInit, OnDestroy {
     new_people: true,
     other_church: true,
     effective: true,
+    not_effective: true,
     baptized: true,
   });
 
@@ -442,6 +450,15 @@ export class Dashboard implements OnInit, OnDestroy {
         data: trend.map((e) => e.effective),
         backgroundColor: 'rgba(37, 99, 235, 0.7)',
         borderColor: '#2563eb',
+        borderWidth: 1,
+        borderRadius: 4,
+      },
+      {
+        key: 'not_effective',
+        label: 'No Efectivos',
+        data: trend.map((e) => e.not_effective),
+        backgroundColor: 'rgba(239, 68, 68, 0.7)',
+        borderColor: '#ef4444',
         borderWidth: 1,
         borderRadius: 4,
       },

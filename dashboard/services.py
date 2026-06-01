@@ -59,6 +59,7 @@ def get_dashboard_data(start_date=None, end_date=None, period='monthly'):
     new_count = qs.exclude(specialism='other_church').count()
     other_church_count = qs.filter(specialism='other_church').count()
     effective = qs.filter(member_state='effective').count()
+    not_effective = qs.filter(member_state='not_effective').count()
     baptized = qs.filter(baptized=True).count()
 
     trunc_fn = TRUNC_MAP.get(period, TruncDate)
@@ -72,6 +73,7 @@ def get_dashboard_data(start_date=None, end_date=None, period='monthly'):
             new_people=Count('id', filter=~Q(specialism='other_church')),
             other_church=Count('id', filter=Q(specialism='other_church')),
             effective=Count('id', filter=Q(member_state='effective')),
+            not_effective=Count('id', filter=Q(member_state='not_effective')),
             baptized=Count('id', filter=Q(baptized=True)),
         )
         .order_by('date')
@@ -84,6 +86,7 @@ def get_dashboard_data(start_date=None, end_date=None, period='monthly'):
             'new_people': entry['new_people'],
             'other_church': entry['other_church'],
             'effective': entry['effective'],
+            'not_effective': entry['not_effective'],
             'baptized': entry['baptized'],
         }
         for entry in trend
@@ -95,6 +98,7 @@ def get_dashboard_data(start_date=None, end_date=None, period='monthly'):
             'new_people': new_count,
             'other_church': other_church_count,
             'effective': effective,
+            'not_effective': not_effective,
             'baptized': baptized,
         },
         'trend': trend_data,
