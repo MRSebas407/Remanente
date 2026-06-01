@@ -262,7 +262,7 @@ export class Layout implements OnInit {
       { path: '/', label: 'Dashboard', icon: 'dashboard', exact: true },
       { path: '/persons', label: 'Personas', icon: 'persons', exact: false },
     ];
-    if (!this.auth.isTeacher()) {
+    if (this.auth.isAdmin() || this.auth.isSpiritualFather()) {
       items.push({ path: '/calls', label: 'Llamadas', icon: 'calls', exact: false });
     }
     if (this.auth.isAdmin() || this.auth.isTeacher()) {

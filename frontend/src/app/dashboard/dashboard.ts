@@ -160,7 +160,7 @@ import ChartDataLabels from 'chartjs-plugin-datalabels';
               <p class="text-3xl font-bold text-primary mt-1">{{ stats()?.total_assigned ?? 0 }}</p>
               <p class="text-xs text-secondary mt-1">Personas a cargo</p>
             </div>
-            @if (!isMaestro) {
+            @if (isAdmin || isSpiritualFather) {
               <div class="bg-accent rounded-xl border border-theme p-4">
                 <p class="text-xs text-secondary uppercase tracking-wide font-medium">Pendientes</p>
                 <p class="text-3xl font-bold text-amber-600 mt-1">{{ stats()?.pending_calls ?? 0 }}</p>
