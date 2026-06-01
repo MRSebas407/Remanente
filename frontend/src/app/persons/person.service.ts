@@ -37,8 +37,8 @@ export class PersonService {
     return this.http.post(`${environment.apiUrl}/persons/${id}/assign_spiritual_father/`, { adviser_id: adviserId, override });
   }
 
-  enrollFundamentals(id: number): Observable<any> {
-    return this.http.post(`${environment.apiUrl}/persons/${id}/enroll_fundamentals/`, {});
+  enrollFundamentals(id: number, teacher_id?: number): Observable<any> {
+    return this.http.post(`${environment.apiUrl}/persons/${id}/enroll_fundamentals/`, { teacher_id });
   }
 
   markBaptized(id: number): Observable<any> {

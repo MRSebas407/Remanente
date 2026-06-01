@@ -11,11 +11,12 @@ import { AuthService } from '../auth/auth.service';
 import { ToastService } from '../shared/toast.service';
 import { ConfirmService } from '../shared/confirm';
 import { AssignFather } from '../shared/assign-father';
+import { AssignMaestro } from '../shared/assign-maestro';
 
 @Component({
   selector: 'app-person-list',
   standalone: true,
-  imports: [FormsModule, PersonCreate, PersonEdit, PersonDetailComponent, AssignFather],
+  imports: [FormsModule, PersonCreate, PersonEdit, PersonDetailComponent, AssignFather, AssignMaestro],
   template: `
     <div class="p-4 sm:p-6 max-w-6xl mx-auto space-y-4">
       <div class="flex items-center justify-between">
@@ -326,6 +327,9 @@ import { AssignFather } from '../shared/assign-father';
     @if (assignFatherPerson(); as p) {
       <app-assign-father [person]="p" (close)="assignFatherPerson.set(null)" (saved)="onFatherAssigned()" />
     }
+    @if (enrollPerson(); as p) {
+      <app-assign-maestro [person]="p" (close)="enrollPerson.set(null)" (saved)="onEnrolled()" />
+    }
   `,
 })
 export class PersonList implements OnInit {
@@ -364,6 +368,7 @@ export class PersonList implements OnInit {
   editModalOpen = signal(false);
   editPersonId = 0;
   assignFatherPerson = signal<PersonListEntry | null>(null);
+  enrollPerson = signal<PersonListEntry | null>(null);
 
   private filterTimeout: any;
 
@@ -575,19 +580,14 @@ export class PersonList implements OnInit {
     });
   }
 
-  async confirmEnroll(p: PersonListEntry): Promise<void> {
-    const ok = await this.confirm.confirm({
-      title: 'Inscribir a Fundamentos',
-      message: `¿Inscribir a ${p.names} ${p.lastname} en Fundamentos 1?`,
-      confirmText: 'Inscribir',
-    });
-    if (!ok) return;
-    this.service.enrollFundamentals(p.id).subscribe({
-      next: () => { this.toast.success('Inscrito a Fundamentos 1'); this.loadStats(); this.loadPage(this.page); },
-      error: (err) => {
-        const msg = err.error?.error || err.error?.detail || 'Error al inscribir';
-        this.toast.error(msg);
-      },
-    });
+  confirmEnroll(p: PersonListEntry): void {
+    this.enrollPerson.set(p);
+  }
+
+  onEnrolled(): void {
+    this.enrollPerson.set(null);
+    this.toast.success('Inscrito a Fundamentos 1');
+    this.loadStats();
+    this.loadPage(this.page);
   }
 }

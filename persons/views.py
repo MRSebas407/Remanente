@@ -230,6 +230,19 @@ class PersonViewSet(viewsets.ModelViewSet):
         if adviser.is_spiritual_father() and person.spiritual_father != adviser:
             return Response({'error': 'No eres el padre espiritual de esta persona'}, status=status.HTTP_403_FORBIDDEN)
 
+        from accounts.models import Adviser, Role
+        teacher_id = request.data.get('teacher_id')
+        if not teacher_id:
+            return Response({'error': 'Debes seleccionar un Maestro'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            teacher = Adviser.objects.get(id=teacher_id, is_active=True)
+        except Adviser.DoesNotExist:
+            return Response({'error': 'Maestro no encontrado o inactivo'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not teacher.is_teacher():
+            return Response({'error': 'El asesor seleccionado no tiene rol de Maestro'}, status=status.HTTP_400_BAD_REQUEST)
+
         person.enrollment_fund_1 = True
 
         old_father = person.spiritual_father
@@ -247,20 +260,15 @@ class PersonViewSet(viewsets.ModelViewSet):
                 logger.warning('Notification unassignment (enroll) failed for old_father %s: %s',
                                old_father.id, result.get('error'))
 
-        from accounts.models import Adviser, Role
-        maestro_role = Role.objects.get(name='Maestro')
-        maestro = Adviser.objects.filter(roles__in=[maestro_role], is_active=True).first()
-        if maestro:
-            person.spiritual_father = maestro
-            person.assignment_state = 'assigned'
-            person.save()
-            from notifications.services import OpenWAService
-            result = OpenWAService().notify_assignment(maestro, person, None)
-            if not result.get('success'):
-                logger.warning('Notification enroll_fundamentals failed for maestro %s: %s',
-                               maestro.id, result.get('error'))
-        else:
-            person.save()
+        person.spiritual_father = teacher
+        person.assignment_state = 'assigned'
+        person.save()
+
+        from notifications.services import OpenWAService
+        result = OpenWAService().notify_assignment(teacher, person, None)
+        if not result.get('success'):
+            logger.warning('Notification enroll_fundamentals failed for maestro %s: %s',
+                           teacher.id, result.get('error'))
 
         return Response({'message': 'Inscrito a Fundamentos 1'})
 
