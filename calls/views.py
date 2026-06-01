@@ -104,9 +104,9 @@ class CallViewSet(viewsets.ModelViewSet):
         person = call.person
         state = serializer.validated_data.get('state', detail.state)
 
-        # Auto-crear siguiente llamada si no es la #3 (sin importar el estado)
+        # Solo crear siguiente llamada si fue efectiva
         next_delay = None
-        if call.call_number < 3:
+        if state == 'effective' and call.call_number < 3:
             next_number = call.call_number + 1
             delay = timedelta(minutes=10) if next_number == 2 else timedelta(minutes=15)
             next_delay = delay
@@ -336,3 +336,33 @@ class CallDetailViewSet(viewsets.ModelViewSet):
         except:
             pass
         return qs
+
+    def perform_update(self, serializer):
+        old_state = serializer.instance.state
+        detail = serializer.save()
+        new_state = detail.state
+
+        # Si cambió de no efectiva a efectiva, crear siguiente llamada si falta
+        if old_state == 'not_effective' and new_state == 'effective':
+            call = detail.call
+            person = call.person
+            call_number = call.call_number
+
+            if call_number < 3:
+                next_number = call_number + 1
+                if not Call.objects.filter(person=person, call_number=next_number).exists():
+                    delay = timedelta(minutes=10) if next_number == 2 else timedelta(minutes=15)
+                    next_call = Call.objects.create(person=person, call_number=next_number)
+                    CallDetail.objects.create(
+                        call=next_call,
+                        made_by=detail.made_by,
+                        scheduled_date=timezone.now() + delay,
+                    )
+            elif call_number == 3:
+                person.member_state = 'effective'
+                person.is_active = True
+                person.assignment_state = 'completed'
+                if person.spiritual_father:
+                    person.spiritual_father.assigned_count = max(0, person.spiritual_father.assigned_count - 1)
+                    person.spiritual_father.save()
+                person.save()

@@ -82,10 +82,17 @@ Pagination: `FlexiblePageNumberPagination` (default 20/page, accepts `?page_size
 
 ### Call recording flow (`record_call`)
 - Updates existing pending CallDetail (annotation, state, signature), sets `made=True`, `date_made=now`
-- Calls #1 and #2 always create the next call (regardless of effective/not_effective) and notify adviser
+- Only if `state='effective'`: creates next Call + CallDetail (calls #1→#2, #2→#3), notifies adviser
+- If `state='not_effective'`: stops — no next call is created, no notification
 - Call #3 determines the final state:
   - If `state='effective'`: `member_state='effective'`, decrements `assigned_count`, notifies adviser
   - If `state='not_effective'`: `member_state='not_effective'`, `assignment_state='deactivated'`, `is_active=False`, decrements `assigned_count`, clears `spiritual_father`
+
+### Call editing (CallDetailViewSet.perform_update)
+- Adviser (Padre Espiritual) can edit their own call details (state, annotation)
+- **When editing `not_effective` → `effective`**:
+  - If call #1 or #2 and next Call doesn't exist: auto-creates next Call + CallDetail
+  - If call #3: sets `member_state='effective'`, `is_active=True`, `assignment_state='completed'`, decrements `assigned_count`
 
 ### Person state fields (read-only in API, admin can override via PUT/PATCH)
 - `specialism`: `joven`, `normal`, `other_church`, `distance`

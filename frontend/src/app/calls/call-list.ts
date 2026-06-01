@@ -224,7 +224,7 @@ import { DashboardService } from '../dashboard/dashboard.service';
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     </button>
                     }
-                    @if (isAdmin) {
+                    @if (isAdmin || isSpiritualFather) {
                     <button (click)="openEdit(c)" title="Editar"
                       class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-accent-hover transition-colors text-secondary">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
@@ -291,6 +291,7 @@ export class CallList implements OnInit, OnDestroy {
   private toast = inject(ToastService);
 
   isAdmin = this.auth.isAdmin();
+  isSpiritualFather = this.auth.isSpiritualFather();
   calls = signal<CallEntry[]>([]);
   loading = signal(false);
   selectedCall = signal<CallEntry | null>(null);
