@@ -85,7 +85,7 @@ import { ConfirmService } from '../shared/confirm';
               @for (a of advisers(); track a.id) {
                 <tr class="border-b border-theme/50 hover:bg-accent-hover/30 transition-colors">
                   <td class="px-3 py-3 text-primary font-medium">{{ a.full_name }}</td>
-                  <td class="px-3 py-3 text-secondary hidden sm:table-cell">{{ a.roles.map(r => r.name).join(', ') }}</td>
+                  <td class="px-3 py-3 text-secondary hidden sm:table-cell">{{ roleNames(a.roles) }}</td>
                   <td class="px-3 py-3 text-secondary hidden md:table-cell font-mono">{{ a.document }}</td>
                   <td class="px-3 py-3 text-secondary hidden md:table-cell font-mono">{{ a.phone }}</td>
                   <td class="px-3 py-3">
@@ -247,6 +247,10 @@ export class AdviserList implements OnInit {
 
   nextPage(): void {
     if (this.page < this.totalPages) this.loadPage(this.page + 1);
+  }
+
+  roleNames(roles: Role[]): string {
+    return roles.map(r => r.name).join(', ');
   }
 
   openCreate(): void {

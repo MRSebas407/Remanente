@@ -140,23 +140,25 @@ import { LookupManager } from '../shared/lookup-manager';
                 </select>
               </div>
               <div>
-                <label class="block text-sm font-medium mb-1 text-primary">Rol <span class="text-red-500">*</span></label>
-                <select [(ngModel)]="roleId" name="roleId" required (change)="onRoleChange()"
-                  class="w-full px-3 py-2 rounded-lg border bg-accent text-primary text-sm focus:outline-none"
-                  [class.border-red-400]="fieldErrors['roleId']"
-                  [class.border-theme]="!fieldErrors['roleId']">
-                  <option value="">Seleccionar</option>
+                <label class="block text-sm font-medium mb-1 text-primary">Roles <span class="text-red-500">*</span></label>
+                <div class="flex flex-wrap gap-3 mt-1">
                   @for (r of roles; track r.id) {
-                    <option [value]="r.id">{{ r.name }}</option>
+                    <label class="flex items-center gap-1.5 text-sm text-primary cursor-pointer">
+                      <input type="checkbox" [value]="r.id"
+                        [checked]="roleIds.includes(r.id)"
+                        (change)="toggleRole(r.id)"
+                        class="rounded border-theme" />
+                      {{ r.name }}
+                    </label>
                   }
-                </select>
-                @if (fieldErrors['roleId']) {
-                  <p class="text-xs text-red-500 mt-0.5">{{ fieldErrors['roleId'] }}</p>
+                </div>
+                @if (fieldErrors['roleIds']) {
+                  <p class="text-xs text-red-500 mt-0.5">{{ fieldErrors['roleIds'] }}</p>
                 }
               </div>
             </div>
 
-            @if (roleId) {
+            @if (roleIds.length > 0) {
               <div>
                 <label class="block text-sm font-medium mb-1 text-primary">Especialidad</label>
                 <select [(ngModel)]="specialismId" name="specialismId"
@@ -314,7 +316,7 @@ export class AdviserForm implements OnInit {
   document = '';
   phone = '';
   gender = 'M';
-  roleId: number | null = null;
+  roleIds: number[] = [];
   specialismId: number | null = null;
 
   sigMode: 'draw' | 'upload' = 'draw';
@@ -353,10 +355,14 @@ export class AdviserForm implements OnInit {
     this.service.getSpecialisms().subscribe({ next: (s) => { this.specialisms = s; this.cdr.detectChanges(); } });
   }
 
-  onRoleChange(): void {
-    if (this.roleId && this.roles.find(r => r.id === this.roleId)?.name === 'Administrador') {
-      this.specialismId = null;
+  toggleRole(roleId: number): void {
+    const idx = this.roleIds.indexOf(roleId);
+    if (idx >= 0) {
+      this.roleIds.splice(idx, 1);
+    } else {
+      this.roleIds.push(roleId);
     }
+    this.validateField('roleIds');
   }
 
   validateField(field: string): void {
@@ -417,8 +423,8 @@ export class AdviserForm implements OnInit {
           this.fieldErrors['password'] = '';
         }
         break;
-      case 'roleId':
-        this.fieldErrors['roleId'] = this.roleId ? '' : 'Selecciona un rol';
+      case 'roleIds':
+        this.fieldErrors['roleIds'] = this.roleIds.length > 0 ? '' : 'Selecciona al menos un rol';
         break;
     }
   }
@@ -597,7 +603,7 @@ export class AdviserForm implements OnInit {
     this.validateField('username');
     this.validateField('email');
     this.validateField('password');
-    this.validateField('roleId');
+    this.validateField('roleIds');
     return !Object.values(this.fieldErrors).some(e => e !== '');
   }
 
@@ -627,7 +633,7 @@ export class AdviserForm implements OnInit {
       document: this.document,
       phone: this.phone,
       gender: this.gender,
-      role_id: this.roleId!,
+      role_ids: this.roleIds,
       specialism_id: this.specialismId,
       signature: sigFile ?? undefined,
       photo: this.photoFile ?? undefined,
@@ -685,7 +691,7 @@ export class AdviserForm implements OnInit {
       document: 'Cédula',
       phone: 'Teléfono',
       gender: 'Género',
-      role_id: 'Rol',
+      role_ids: 'Roles',
       specialism_id: 'Especialidad',
       signature: 'Firma',
       photo: 'Foto',
@@ -709,7 +715,7 @@ export class AdviserForm implements OnInit {
   private resetForm(): void {
     this.username = ''; this.email = ''; this.password = '';
     this.names = ''; this.lastName = ''; this.document = ''; this.phone = '';
-    this.roleId = null; this.specialismId = null;
+    this.roleIds = []; this.specialismId = null;
     this.clearSig();
     this.sigFile = null; this.sigFileName = ''; this.sigPreviewUrl = '';
     this.photoFile = null; this.photoFileName = ''; this.photoPreviewUrl = '';

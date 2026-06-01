@@ -4,7 +4,7 @@ import { CallService } from './call.service';
 import { PersonService } from '../persons/person.service';
 import { PersonListEntry } from '../persons/person.model';
 import { AdviserService } from '../advisers/adviser.service';
-import { AdviserListEntry } from '../advisers/adviser.model';
+import { AdviserListEntry, Role } from '../advisers/adviser.model';
 import { ToastService } from '../shared/toast.service';
 
 @Component({
@@ -48,7 +48,7 @@ import { ToastService } from '../shared/toast.service';
               class="w-full px-3 py-2 rounded-lg border border-theme bg-accent text-primary text-sm focus:outline-none">
               <option value="">Seleccionar</option>
               @for (a of advisers; track a.id) {
-                <option [value]="a.id">{{ a.full_name }} ({{ a.roles.map(r => r.name).join(', ') }})</option>
+                <option [value]="a.id">{{ a.full_name }} ({{ roleNames(a.roles) }})</option>
               }
             </select>
           </div>
@@ -88,6 +88,10 @@ export class CallForm implements OnInit {
   madeById = '';
   scheduledDate = '';
   saving = signal(false);
+
+  roleNames(roles: Role[]): string {
+    return roles.map(r => r.name).join(', ');
+  }
 
   ngOnInit(): void {
     this.personService.list({ page: 1 }).subscribe({

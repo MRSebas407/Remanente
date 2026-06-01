@@ -1,6 +1,6 @@
 import { Component, inject, input, output, signal, OnInit } from '@angular/core';
 import { AdviserService } from './adviser.service';
-import { AdviserDetail } from './adviser.model';
+import { AdviserDetail, Role } from './adviser.model';
 
 @Component({
   selector: 'app-adviser-detail',
@@ -52,7 +52,7 @@ import { AdviserDetail } from './adviser.model';
             </div>
             <div>
               <label class="block text-xs font-medium text-secondary uppercase tracking-wide">Rol</label>
-              <p class="text-primary font-medium">{{ d.roles.map(r => r.name).join(', ') }}</p>
+              <p class="text-primary font-medium">{{ roleNames(d.roles) }}</p>
             </div>
             <div>
               <label class="block text-xs font-medium text-secondary uppercase tracking-wide">Especialidad</label>
@@ -88,6 +88,10 @@ export class AdviserDetailComponent implements OnInit {
 
   detail = signal<AdviserDetail | null>(null);
   loading = signal(false);
+
+  roleNames(roles: Role[]): string {
+    return roles.map(r => r.name).join(', ');
+  }
 
   ngOnInit(): void {
     this.loading.set(true);
