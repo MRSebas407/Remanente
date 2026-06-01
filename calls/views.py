@@ -93,67 +93,62 @@ class CallViewSet(viewsets.ModelViewSet):
         person = call.person
         state = serializer.validated_data.get('state', detail.state)
 
-        # Si la llamada fue no efectiva → desactivar persona inmediatamente
-        if state == 'not_effective':
-            person.member_state = 'not_effective'
-            person.assignment_state = 'deactivated'
-            person.is_active = False
-            if person.spiritual_father:
-                person.spiritual_father.assigned_count = max(0, person.spiritual_father.assigned_count - 1)
-                person.spiritual_father.save()
-                person.spiritual_father = None
-            person.save()
+        # Auto-crear siguiente llamada si no es la #3 (sin importar el estado)
+        next_delay = None
+        if call.call_number < 3:
+            next_number = call.call_number + 1
+            delay = timedelta(minutes=10) if next_number == 2 else timedelta(minutes=15)
+            next_delay = delay
+            next_call = Call.objects.create(person=person, call_number=next_number)
+            CallDetail.objects.create(
+                call=next_call,
+                made_by=detail.made_by,
+                scheduled_date=timezone.now() + delay
+            )
+
+        if call.call_number in (1, 2):
             from notifications.services import OpenWAService
-            result = OpenWAService().notify_call_recorded(adviser, person, call.call_number, None)
+            recipient = person.spiritual_father or adviser
+            logger.info('Sending call_recorded notification for call #%s to phone: %s (recipient %s)',
+                        call.call_number, recipient.profile.phone, recipient.id)
+            result = OpenWAService().notify_call_recorded(adviser, person, call.call_number, next_delay)
             if not result.get('success'):
-                logger.warning('Notification not_effective for call #%s failed for adviser %s: %s',
+                logger.warning('Notification record_call #%s failed for adviser %s: %s',
                                call.call_number, adviser.id, result.get('error'))
                 warnings.append(f'No se pudo enviar notificación WhatsApp: {result.get("error")}')
-        else:
-            # Auto-crear siguiente llamada si corresponde
-            next_delay = None
-            if call.call_number < 3:
-                next_number = call.call_number + 1
-                delay = timedelta(minutes=10) if next_number == 2 else timedelta(minutes=15)
-                next_delay = delay
-                next_call = Call.objects.create(person=person, call_number=next_number)
-                CallDetail.objects.create(
-                    call=next_call,
-                    made_by=detail.made_by,
-                    scheduled_date=timezone.now() + delay
-                )
 
-            if call.call_number in (1, 2):
+        # La llamada #3 determina el estado final de la persona
+        if call.call_number == 3:
+            if state == 'effective':
+                person.member_state = 'effective'
+                if person.spiritual_father:
+                    person.spiritual_father.assigned_count = max(0, person.spiritual_father.assigned_count - 1)
+                    person.spiritual_father.save()
+                person.save()
                 from notifications.services import OpenWAService
                 recipient = person.spiritual_father or adviser
-                logger.info('Sending call_recorded notification for call #%s to phone: %s (recipient %s)',
-                            call.call_number, recipient.profile.phone, recipient.id)
-                result = OpenWAService().notify_call_recorded(adviser, person, call.call_number, next_delay)
+                logger.info('Sending third_call_completed notification to phone: %s (recipient %s)',
+                            recipient.profile.phone, recipient.id)
+                result = OpenWAService().notify_third_call_completed(adviser, person)
                 if not result.get('success'):
-                    logger.warning('Notification record_call #%s failed for adviser %s: %s',
+                    logger.warning('Notification third_call_completed failed for adviser %s: %s',
+                                   adviser.id, result.get('error'))
+                    warnings.append(f'No se pudo enviar notificación WhatsApp: {result.get("error")}')
+            else:
+                person.member_state = 'not_effective'
+                person.assignment_state = 'deactivated'
+                person.is_active = False
+                if person.spiritual_father:
+                    person.spiritual_father.assigned_count = max(0, person.spiritual_father.assigned_count - 1)
+                    person.spiritual_father.save()
+                    person.spiritual_father = None
+                person.save()
+                from notifications.services import OpenWAService
+                result = OpenWAService().notify_call_recorded(adviser, person, call.call_number, None)
+                if not result.get('success'):
+                    logger.warning('Notification not_effective for call #%s failed for adviser %s: %s',
                                    call.call_number, adviser.id, result.get('error'))
                     warnings.append(f'No se pudo enviar notificación WhatsApp: {result.get("error")}')
-
-            # Si es la tercera llamada, verificar si todas fueron exitosas
-            if call.call_number == 3:
-                effective_count = CallDetail.objects.filter(
-                    call__person=person, made=True, state='effective'
-                ).count()
-                if effective_count == 3:
-                    person.member_state = 'effective'
-                    if person.spiritual_father:
-                        person.spiritual_father.assigned_count = max(0, person.spiritual_father.assigned_count - 1)
-                        person.spiritual_father.save()
-                    person.save()
-                    from notifications.services import OpenWAService
-                    recipient = person.spiritual_father or adviser
-                    logger.info('Sending third_call_completed notification to phone: %s (recipient %s)',
-                                recipient.profile.phone, recipient.id)
-                    result = OpenWAService().notify_third_call_completed(adviser, person)
-                    if not result.get('success'):
-                        logger.warning('Notification third_call_completed failed for adviser %s: %s',
-                                       adviser.id, result.get('error'))
-                        warnings.append(f'No se pudo enviar notificación WhatsApp: {result.get("error")}')
 
         resp_data = serializer.data
         if detail.signature:

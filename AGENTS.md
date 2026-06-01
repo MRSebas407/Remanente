@@ -82,12 +82,10 @@ Pagination: `FlexiblePageNumberPagination` (default 20/page, accepts `?page_size
 
 ### Call recording flow (`record_call`)
 - Updates existing pending CallDetail (annotation, state, signature), sets `made=True`, `date_made=now`
-- If `state='not_effective'` (any call #1, #2, #3): immediately deactivates person:
-  - `member_state='not_effective'`, `assignment_state='deactivated'`, `is_active=False`
-  - Decrements `assigned_count`, clears `spiritual_father`
-  - Does NOT create next call
-- If `state='effective'` and `call_number < 3`: auto-creates next Call + CallDetail, scheduling at `now + 10min` (call #2) or `now + 15min` (call #3), notifies adviser
-- If `state='effective'` and `call_number == 3` and all 3 details have `state='effective'`: sets `person.member_state='effective'`, decrements `assigned_count`, notifies adviser
+- Calls #1 and #2 always create the next call (regardless of effective/not_effective) and notify adviser
+- Call #3 determines the final state:
+  - If `state='effective'`: `member_state='effective'`, decrements `assigned_count`, notifies adviser
+  - If `state='not_effective'`: `member_state='not_effective'`, `assignment_state='deactivated'`, `is_active=False`, decrements `assigned_count`, clears `spiritual_father`
 
 ### Person state fields (read-only in API, admin can override via PUT/PATCH)
 - `specialism`: `joven`, `normal`, `other_church`, `distance`
