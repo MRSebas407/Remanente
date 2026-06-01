@@ -101,7 +101,7 @@ class AdviserViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        qs = qs.exclude(roles__name='Administrador')
+        qs = qs.exclude(roles__name='Administrador').prefetch_related('roles').distinct()
         search = self.request.query_params.get('search')
         name = self.request.query_params.get('name')
         document = self.request.query_params.get('document')

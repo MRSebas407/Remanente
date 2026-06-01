@@ -162,6 +162,7 @@ class AdviserSerializer(serializers.ModelSerializer):
 
 class AdviserListSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
+    roles = RoleSerializer(many=True, read_only=True)
 
     document = serializers.CharField(source='profile.document')
     phone = serializers.CharField(source='profile.phone')
