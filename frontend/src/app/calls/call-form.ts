@@ -48,7 +48,7 @@ import { ToastService } from '../shared/toast.service';
               class="w-full px-3 py-2 rounded-lg border border-theme bg-accent text-primary text-sm focus:outline-none">
               <option value="">Seleccionar</option>
               @for (a of advisers; track a.id) {
-                <option [value]="a.id">{{ a.full_name }} ({{ a.role_name }})</option>
+                <option [value]="a.id">{{ a.full_name }} ({{ a.roles.map(r => r.name).join(', ') }})</option>
               }
             </select>
           </div>

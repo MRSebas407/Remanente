@@ -26,7 +26,7 @@ export class AdviserService {
     fd.append('document', payload.document);
     fd.append('phone', payload.phone);
     fd.append('gender', payload.gender);
-    fd.append('role_id', String(payload.role_id));
+    payload.role_ids.forEach(id => fd.append('role_ids', String(id)));
     if (payload.specialism_id != null) {
       fd.append('specialism_id', String(payload.specialism_id));
     }

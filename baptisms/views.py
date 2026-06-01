@@ -66,7 +66,7 @@ class BaptismalRegisterViewSet(viewsets.ModelViewSet):
         )
         if baptized_no_register.exists():
             teacher = Adviser.objects.filter(
-                role=Role.objects.get(name='Maestro'),
+                roles__in=[Role.objects.get(name='Maestro')],
                 is_active=True
             ).first()
             for person in baptized_no_register:

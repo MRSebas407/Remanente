@@ -53,13 +53,18 @@ import { LookupManager } from '../shared/lookup-manager';
 
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="block text-xs font-medium text-primary mb-0.5">Rol</label>
-                <select [(ngModel)]="roleId" name="roleId" required
-                  class="w-full px-3 py-2 rounded-lg border border-theme bg-accent text-primary text-sm focus:outline-none">
+                <label class="block text-xs font-medium text-primary mb-0.5">Roles</label>
+                <div class="flex flex-wrap gap-3 mt-1">
                   @for (r of roles; track r.id) {
-                    <option [value]="r.id">{{ r.name }}</option>
+                    <label class="flex items-center gap-1.5 text-sm text-primary cursor-pointer">
+                      <input type="checkbox" [value]="r.id"
+                        [checked]="roleIds.includes(r.id)"
+                        (change)="toggleRole(r.id)"
+                        class="rounded border-theme" />
+                      {{ r.name }}
+                    </label>
                   }
-                </select>
+                </div>
               </div>
               <div>
                 <label class="block text-xs font-medium text-primary mb-0.5">Especialidad</label>
@@ -257,7 +262,7 @@ export class AdviserEdit implements OnInit {
   document = '';
   phone = '';
   gender = 'M';
-  roleId: number | null = null;
+  roleIds: number[] = [];
   specialismId: number | null = null;
   isActive = true;
 
@@ -295,7 +300,7 @@ export class AdviserEdit implements OnInit {
         this.document = d.profile.document;
         this.phone = d.profile.phone;
         this.gender = d.profile.gender;
-        this.roleId = d.role.id;
+        this.roleIds = d.roles.map(r => r.id);
         this.specialismId = d.specialism?.id ?? null;
         this.isActive = d.is_active;
         this.existingPhotoUrl = d.profile.photo || '';
@@ -326,7 +331,7 @@ export class AdviserEdit implements OnInit {
       fd.append('document', this.document);
       fd.append('phone', this.phone);
       fd.append('gender', this.gender);
-      fd.append('role_id', String(this.roleId));
+      this.roleIds.forEach(id => fd.append('role_ids', String(id)));
       fd.append('specialism_id', this.specialismId != null ? String(this.specialismId) : '');
       fd.append('is_active', String(this.isActive));
       if (this.photoFile) fd.append('photo', this.photoFile);
@@ -342,6 +347,15 @@ export class AdviserEdit implements OnInit {
         },
       });
     });
+  }
+
+  toggleRole(roleId: number): void {
+    const idx = this.roleIds.indexOf(roleId);
+    if (idx >= 0) {
+      this.roleIds.splice(idx, 1);
+    } else {
+      this.roleIds.push(roleId);
+    }
   }
 
   private canvasToFile(): Promise<File | null> {

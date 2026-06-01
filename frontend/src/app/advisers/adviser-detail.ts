@@ -52,7 +52,7 @@ import { AdviserDetail } from './adviser.model';
             </div>
             <div>
               <label class="block text-xs font-medium text-secondary uppercase tracking-wide">Rol</label>
-              <p class="text-primary font-medium">{{ d.role.name }}</p>
+              <p class="text-primary font-medium">{{ d.roles.map(r => r.name).join(', ') }}</p>
             </div>
             <div>
               <label class="block text-xs font-medium text-secondary uppercase tracking-wide">Especialidad</label>

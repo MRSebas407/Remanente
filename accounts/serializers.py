@@ -26,12 +26,13 @@ class UserCreateSerializer(serializers.Serializer):
     phone = serializers.CharField()
     photo = serializers.ImageField(required=False)
     gender = serializers.ChoiceField(choices=['M', 'F'], default='M')
-    role_id = serializers.IntegerField()
+    role_ids = serializers.ListField(child=serializers.IntegerField(), write_only=True)
     specialism_id = serializers.IntegerField(required=False, allow_null=True)
     signature = serializers.ImageField(required=False)
 
     def create(self, validated_data):
         from django.contrib.auth.hashers import make_password
+        role_ids = validated_data.pop('role_ids', [])
         user = User.objects.create(
             username=validated_data['username'],
             email=validated_data['email'],
@@ -50,10 +51,11 @@ class UserCreateSerializer(serializers.Serializer):
         register_user = RegisterUser.objects.create(**register_data)
         adviser = Adviser.objects.create(
             profile=register_user,
-            role_id=validated_data['role_id'],
             specialism_id=validated_data.get('specialism_id'),
             signature=validated_data.get('signature'),
         )
+        if role_ids:
+            adviser.roles.set(role_ids)
         return {'user': user, 'register_user': register_user, 'adviser': adviser}
 
 
@@ -82,7 +84,7 @@ class AdviserSerializer(serializers.ModelSerializer):
     phone = serializers.CharField(write_only=True)
     gender = serializers.ChoiceField(write_only=True, choices=['M', 'F'], default='M')
     photo = serializers.ImageField(write_only=True, required=False)
-    role_id = serializers.IntegerField(write_only=True)
+    role_ids = serializers.ListField(child=serializers.IntegerField(), write_only=True)
     specialism_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
 
     class Meta:
@@ -108,6 +110,7 @@ class AdviserSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         from django.contrib.auth.hashers import make_password
+        role_ids = validated_data.pop('role_ids', [])
         user = User.objects.create(
             username=validated_data.pop('username'),
             email=validated_data.pop('email'),
@@ -124,6 +127,8 @@ class AdviserSerializer(serializers.ModelSerializer):
         )
         validated_data.pop('is_active', None)
         adviser = Adviser.objects.create(profile=register_user, is_active=True, **validated_data)
+        if role_ids:
+            adviser.roles.set(role_ids)
         return adviser
 
     def update(self, instance, validated_data):
@@ -144,8 +149,9 @@ class AdviserSerializer(serializers.ModelSerializer):
 
         if 'signature' in validated_data:
             instance.signature = validated_data.pop('signature')
-        if 'role_id' in validated_data:
-            instance.role_id = validated_data.pop('role_id')
+        if 'role_ids' in validated_data:
+            role_ids = validated_data.pop('role_ids')
+            instance.roles.set(role_ids)
         if 'specialism_id' in validated_data:
             instance.specialism_id = validated_data.pop('specialism_id')
         if 'is_active' in validated_data:

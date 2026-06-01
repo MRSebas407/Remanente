@@ -113,22 +113,25 @@ import { LookupManager } from '../shared/lookup-manager';
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium mb-1 text-primary">Rol <span class="text-red-500">*</span></label>
-            <select [(ngModel)]="roleId" name="roleId" required (change)="onRoleChange()"
-              class="w-full px-3 py-2 rounded-lg border border-theme bg-accent text-primary text-sm focus:outline-none"
-              [class.border-red-400]="fieldErrors['roleId']">
-              <option value="">Seleccionar</option>
+            <label class="block text-sm font-medium mb-1 text-primary">Roles <span class="text-red-500">*</span></label>
+            <div class="flex flex-wrap gap-3 mt-1">
               @for (r of roles; track r.id) {
-                <option [value]="r.id">{{ r.name }}</option>
+                <label class="flex items-center gap-1.5 text-sm text-primary cursor-pointer">
+                  <input type="checkbox" [value]="r.id"
+                    [checked]="roleIds.includes(r.id)"
+                    (change)="toggleRole(r.id)"
+                    class="rounded border-theme" />
+                  {{ r.name }}
+                </label>
               }
-            </select>
-            @if (fieldErrors['roleId']) {
-              <p class="text-xs text-red-500 mt-0.5">{{ fieldErrors['roleId'] }}</p>
+            </div>
+            @if (fieldErrors['roleIds']) {
+              <p class="text-xs text-red-500 mt-0.5">{{ fieldErrors['roleIds'] }}</p>
             }
           </div>
         </div>
 
-        @if (roleId) {
+        @if (roleIds.length > 0) {
           <div>
             <label class="block text-sm font-medium mb-1 text-primary">Especialidad</label>
             <select [(ngModel)]="specialismId" name="specialismId"
@@ -287,7 +290,7 @@ export class AdviserCreate implements OnInit {
   document = '';
   phone = '';
   gender = 'M';
-  roleId: number | null = null;
+  roleIds: number[] = [];
   specialismId: number | null = null;
 
   sigMode: 'draw' | 'upload' = 'draw';
@@ -319,12 +322,6 @@ export class AdviserCreate implements OnInit {
     this.showLookupManager.set(false);
     this.service.getRoles().subscribe({ next: (r) => { this.roles = r; this.cdr.detectChanges(); } });
     this.service.getSpecialisms().subscribe({ next: (s) => { this.specialisms = s; this.cdr.detectChanges(); } });
-  }
-
-  onRoleChange(): void {
-    if (this.roleId && this.roles.find(r => r.id === this.roleId)?.name === 'Administrador') {
-      this.specialismId = null;
-    }
   }
 
   validateField(field: string): void {
@@ -372,8 +369,8 @@ export class AdviserCreate implements OnInit {
           this.fieldErrors['email'] = '';
         }
         break;
-      case 'roleId':
-        this.fieldErrors['roleId'] = this.roleId ? '' : 'Selecciona un rol';
+      case 'roleIds':
+        this.fieldErrors['roleIds'] = this.roleIds.length > 0 ? '' : 'Selecciona al menos un rol';
         break;
     }
   }
@@ -566,7 +563,7 @@ export class AdviserCreate implements OnInit {
     this.validateField('phone');
     this.validateField('username');
     this.validateField('email');
-    this.validateField('roleId');
+    this.validateField('roleIds');
     return !Object.values(this.fieldErrors).some(e => e !== '');
   }
 
@@ -596,7 +593,7 @@ export class AdviserCreate implements OnInit {
       document: this.document,
       phone: this.phone,
       gender: this.gender,
-      role_id: this.roleId!,
+      role_ids: this.roleIds,
       specialism_id: this.specialismId,
       signature: sigFile ?? undefined,
       photo: this.photoFile ?? undefined,
@@ -611,6 +608,16 @@ export class AdviserCreate implements OnInit {
         msgs.forEach(m => this.toast.error(m));
       },
     });
+  }
+
+  toggleRole(roleId: number): void {
+    const idx = this.roleIds.indexOf(roleId);
+    if (idx >= 0) {
+      this.roleIds.splice(idx, 1);
+    } else {
+      this.roleIds.push(roleId);
+    }
+    this.validateField('roleIds');
   }
 
   private parseApiError(err: any): string[] {
@@ -653,7 +660,7 @@ export class AdviserCreate implements OnInit {
       document: 'Cédula',
       phone: 'Teléfono',
       gender: 'Género',
-      role_id: 'Rol',
+      role_ids: 'Roles',
       specialism_id: 'Especialidad',
       signature: 'Firma',
       photo: 'Foto',

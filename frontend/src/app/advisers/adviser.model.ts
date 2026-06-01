@@ -21,7 +21,7 @@ export interface AdviserPayload {
   document: string;
   phone: string;
   gender: string;
-  role_id: number;
+  role_ids: number[];
   specialism_id?: number | null;
   photo?: File | null;
   signature?: File | null;
@@ -30,7 +30,7 @@ export interface AdviserPayload {
 export interface AdviserListEntry {
   id: number;
   full_name: string;
-  role_name: string;
+  roles: Role[];
   document: string;
   phone: string;
   is_active: boolean;
@@ -56,7 +56,7 @@ export interface AdviserDetail {
     photo: string | null;
     gender: string;
   };
-  role: Role;
+  roles: Role[];
   specialism: Specialism | null;
   signature: string | null;
   is_active: boolean;
