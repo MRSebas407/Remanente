@@ -82,15 +82,18 @@ Pagination: `FlexiblePageNumberPagination` (default 20/page, accepts `?page_size
 
 ### Call recording flow (`record_call`)
 - Updates existing pending CallDetail (annotation, state, signature), sets `made=True`, `date_made=now`
-- If `call_number < 3`: auto-creates next Call + CallDetail, scheduling at `now + 10min` (call #2) or `now + 15min` (call #3)
-- Notifies adviser via WhatsApp after recording calls #1 and #2
-- If call #3 and all 3 details have `state='effective'`: sets `person.member_state='effective'`, decrements `assigned_count`, notifies adviser
+- If `state='not_effective'` (any call #1, #2, #3): immediately deactivates person:
+  - `member_state='not_effective'`, `assignment_state='deactivated'`, `is_active=False`
+  - Decrements `assigned_count`, clears `spiritual_father`
+  - Does NOT create next call
+- If `state='effective'` and `call_number < 3`: auto-creates next Call + CallDetail, scheduling at `now + 10min` (call #2) or `now + 15min` (call #3), notifies adviser
+- If `state='effective'` and `call_number == 3` and all 3 details have `state='effective'`: sets `person.member_state='effective'`, decrements `assigned_count`, notifies adviser
 
 ### Person state fields (read-only in API, admin can override via PUT/PATCH)
 - `specialism`: `joven`, `normal`, `other_church`, `distance`
 - `comes_from_church`/`comes_from_details` visible only when `specialism == "other_church"`
-- `assignment_state`: `pending`, `assigned`, `completed`
-- `member_state`: `effective`, `not_effective` (auto-changes to `effective` on 3rd successful call)
+- `assignment_state`: `pending`, `assigned`, `completed`, `deactivated`
+- `member_state`: `effective`, `not_effective` (default, changes to `effective` on 3rd successful call, stays `not_effective` if any call fails)
 - `data_consent`: boolean field
 
 ### enroll_fundamentals flow
