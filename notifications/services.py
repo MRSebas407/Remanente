@@ -121,7 +121,14 @@ class OpenWAService:
         if status in READY:
             pass
         elif status in PENDING:
-            return {'success': False, 'error': f'Session {status}, try again later'}
+            for attempt in range(3):
+                logger.info('send_text: session "%s", waiting 5s (attempt %d)', status, attempt + 1)
+                time.sleep(5)
+                status = self.session_status()
+                if status in READY:
+                    break
+            else:
+                return {'success': False, 'error': f'Session {status} after retries'}
         else:
             if status:
                 logger.info('send_text: session status "%s", resetting...', status)
@@ -156,11 +163,14 @@ class OpenWAService:
         return ok
 
     def _format_tiempo(self, delta) -> str:
-        horas = delta.total_seconds() / 3600
-        if horas >= 24 and horas % 24 == 0:
-            dias = int(horas // 24)
-            return f'{dias} día' if dias == 1 else f'{dias} días'
-        return f'{int(horas)} horas'
+        total_sec = int(delta.total_seconds())
+        if total_sec <= 0:
+            return '0d:0h:0min:0s'
+        d = total_sec // 86400
+        h = (total_sec % 86400) // 3600
+        m = (total_sec % 3600) // 60
+        s = total_sec % 60
+        return f'{d}d:{h}h:{m}min:{s}s'
 
     def notify_assignment(self, adviser, person, call_detail=None) -> dict:
         phone = adviser.profile.phone
@@ -168,36 +178,57 @@ class OpenWAService:
             tiempo = self._format_tiempo(call_detail.scheduled_date - call_detail.call.created_in)
             message = (
                 f'Hola {adviser.profile.names} {adviser.profile.last_name}, '
-                f'te informamos que se te ha asignado a {person.names} {person.lastname}. '
+                f'te informamos que se te ha asignado a *{person.names} {person.lastname}*. '
                 f'Tienes un tiempo de {tiempo} para hacer la primera llamada. '
                 f'Lo puedes hacer al siguiente número: {person.phone}'
             )
         else:
             message = (
                 f'Hola {adviser.profile.names} {adviser.profile.last_name}, '
-                f'te informamos que se te ha asignado a {person.names} {person.lastname} '
+                f'te informamos que se te ha asignado a *{person.names} {person.lastname}* '
                 f'para el proceso de fundamentos. Puedes ver los detalles en el panel de la aplicación. '
                 f'Muchas gracias.'
             )
         return self.send_text(phone, message)
 
-    def notify_call_recorded(self, adviser, person, call_number) -> dict:
-        phone = adviser.profile.phone
+    def notify_call_recorded(self, adviser, person, call_number, next_delay=None) -> dict:
+        recipient = person.spiritual_father or adviser
+        phone = recipient.profile.phone
+        if next_delay and call_number < 3:
+            tiempo = self._format_tiempo(next_delay)
+            message = (
+                f'Gracias por comunicarte con *{person.names} {person.lastname}*. '
+                f'Te recuerdo que la siguiente llamada será dentro de {tiempo}, '
+                f'atento(a) a las notificaciones o al panel de la aplicación. '
+                f'Muchas gracias.'
+            )
+        else:
+            message = (
+                f'Gracias por comunicarte con *{person.names} {person.lastname}*. '
+                f'Recuerda que también puedes ver el estado de las personas que se te asignaron '
+                f'en el panel de la aplicación. '
+                f'Muchas gracias.'
+            )
+        return self.send_text(phone, message)
+
+    def notify_unassignment(self, old_father, person) -> dict:
+        phone = old_father.profile.phone
         message = (
-            f'Gracias por comunicarte con {person.names} {person.lastname}. '
-            f'Recuerda que también puedes ver el estado de las personas que se te asignaron '
-            f'en el panel de la aplicación. '
-            f'Te recuerdo que la siguiente llamada será dentro de 8 días, '
-            f'atento(a) a las notificaciones o al panel de la aplicación. '
+            f'Hola {old_father.profile.names} {old_father.profile.last_name}, '
+            f'te informamos que *{person.names} {person.lastname}* ha sido reasignado(a) a otro asesor. '
+            f'Por favor, no te comuniques más con esta persona. '
+            f'Estate atento(a) a tu panel y a las notificaciones '
+            f'para conocer tus nuevas asignaciones. '
             f'Muchas gracias.'
         )
         return self.send_text(phone, message)
 
     def notify_third_call_completed(self, adviser, person) -> dict:
-        phone = adviser.profile.phone
+        recipient = person.spiritual_father or adviser
+        phone = recipient.profile.phone
         message = (
-            f'Felicidades {adviser.profile.names} {adviser.profile.last_name}, '
-            f'has completado las 3 llamadas con {person.names} {person.lastname} '
+            f'Felicidades {recipient.profile.names} {recipient.profile.last_name}, '
+            f'has completado las 3 llamadas con *{person.names} {person.lastname}* '
             f'de manera exitosa. '
             f'Agradecemos tu esfuerzo y tiempo dedicado. '
         )

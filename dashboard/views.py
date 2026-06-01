@@ -35,6 +35,6 @@ class DashboardViewSet(viewsets.ViewSet):
             adviser = request.user.register_profile.adviser_profile
         except:
             return Response({'error': 'No eres asesor'}, status=403)
-        admin = adviser.role.name == 'Administrador'
+        admin = adviser.is_admin()
         data = get_adviser_stats(None if admin else adviser)
         return Response(data)

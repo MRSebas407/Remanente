@@ -7,7 +7,7 @@ class IsAdmin(BasePermission):
             return False
         try:
             adviser = request.user.register_profile.adviser_profile
-            return adviser.role.name == 'Administrador'
+            return adviser.is_admin()
         except:
             return False
 
@@ -18,7 +18,7 @@ class IsSpiritualFather(BasePermission):
             return False
         try:
             adviser = request.user.register_profile.adviser_profile
-            return adviser.role.name == 'Padre Espiritual'
+            return adviser.is_spiritual_father()
         except:
             return False
 
@@ -29,7 +29,7 @@ class IsTeacher(BasePermission):
             return False
         try:
             adviser = request.user.register_profile.adviser_profile
-            return adviser.role.name == 'Maestro'
+            return adviser.is_teacher()
         except:
             return False
 
@@ -42,6 +42,6 @@ class IsAdminOrRead(BasePermission):
             return True
         try:
             adviser = request.user.register_profile.adviser_profile
-            return adviser.role.name == 'Administrador'
+            return adviser.is_admin()
         except:
             return False

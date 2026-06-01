@@ -8,7 +8,7 @@ import { ToastService } from '../shared/toast.service';
   standalone: true,
   imports: [FormsModule],
   template: `
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" (click)="close.emit()">
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div class="bg-accent rounded-xl border border-theme shadow-2xl p-6 max-w-md w-full mx-4" (click)="$event.stopPropagation()">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold text-primary">Registrar Llamada</h3>
@@ -75,7 +75,13 @@ export class CallDetail {
     fd.append('state', this.state);
     fd.append('annotation', this.annotation);
     this.service.recordCall(this.callId(), fd).subscribe({
-      next: () => { this.saving.set(false); this.saved.emit(); },
+      next: (res: any) => {
+        this.saving.set(false);
+        if (res?.notification_warnings?.length) {
+          this.toast.warning(res.notification_warnings.join('. '));
+        }
+        this.saved.emit();
+      },
       error: () => { this.saving.set(false); this.toast.error('Error al registrar llamada'); },
     });
   }

@@ -30,7 +30,8 @@ import { ChangePassword } from '../shared/change-password';
           </button>
         </div>
         <div class="text-center mb-8">
-          <h1 class="text-2xl font-bold text-primary">App Iglesia</h1>
+          <img src="logo.svg" alt="Remanente" class="h-24 w-24 mx-auto mb-3" />
+          <h1 class="text-2xl font-bold text-primary">Remanente</h1>
           <p class="text-secondary mt-1 text-sm">Inicia sesión para continuar</p>
         </div>
 

@@ -67,9 +67,43 @@ export class AuthService {
     return this.getUserInfo()?.role || null;
   }
 
+  hasRole(name: string): boolean {
+    const role = this.getUserRole();
+    if (!role) return false;
+    return role.split(', ').includes(name);
+  }
+
+  isAdmin(): boolean {
+    return this.hasRole('Administrador');
+  }
+
+  isSpiritualFather(): boolean {
+    return this.hasRole('Padre Espiritual');
+  }
+
+  isTeacher(): boolean {
+    return this.hasRole('Maestro');
+  }
+
   getUserName(): string | null {
     const info = this.getUserInfo();
     return info?.username || null;
+  }
+
+  getUserDisplayName(): string | null {
+    const info = this.getUserInfo();
+    if (info?.names && info?.last_name) {
+      return `${info.names} ${info.last_name}`;
+    }
+    return info?.username || null;
+  }
+
+  getUserInitial(): string {
+    const info = this.getUserInfo();
+    if (info?.names) {
+      return info.names[0].toUpperCase();
+    }
+    return (info?.username?.[0] || 'U').toUpperCase();
   }
 
   getAdviserId(): number | null {
@@ -85,7 +119,17 @@ export class AuthService {
   }
 
   updateProfile(data: FormData): Observable<any> {
-    return this.http.patch(`${environment.apiUrl}/profile/me/`, data);
+    return this.http.patch(`${environment.apiUrl}/profile/me/`, data).pipe(
+      tap((res: any) => {
+        const info = this.getUserInfo();
+        if (info && res) {
+          info.names = res.names ?? info.names;
+          info.last_name = res.last_name ?? info.last_name;
+          info.photo = res.photo ?? info.photo;
+          localStorage.setItem(this.USER_KEY, JSON.stringify(info));
+        }
+      })
+    );
   }
 
   changePassword(newPassword: string, confirmPassword: string): Observable<any> {

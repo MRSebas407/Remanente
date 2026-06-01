@@ -64,7 +64,7 @@ class RegisterUser(models.Model):
 
 class Adviser(models.Model):
     profile = models.OneToOneField(RegisterUser, on_delete=models.CASCADE, related_name='adviser_profile')
-    role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='advisers')
+    roles = models.ManyToManyField(Role, related_name='advisers', blank=True)
     specialism = models.ForeignKey(Specialism, on_delete=models.SET_NULL, null=True, blank=True, related_name='advisers')
     signature = models.ImageField(upload_to='signatures/', blank=True, null=True)
     is_active = models.BooleanField(default=True)
@@ -76,4 +76,17 @@ class Adviser(models.Model):
         verbose_name_plural = 'Asesores'
 
     def __str__(self):
-        return f'{self.profile.names} {self.profile.last_name} - {self.role.name}'
+        roles_list = ', '.join(self.roles.all().values_list('name', flat=True))
+        return f'{self.profile.names} {self.profile.last_name} - {roles_list}'
+
+    def has_role(self, name):
+        return self.roles.filter(name=name).exists()
+
+    def is_admin(self):
+        return self.has_role('Administrador')
+
+    def is_spiritual_father(self):
+        return self.has_role('Padre Espiritual')
+
+    def is_teacher(self):
+        return self.has_role('Maestro')

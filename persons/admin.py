@@ -32,7 +32,7 @@ class PersonAdmin(admin.ModelAdmin):
             return
 
         candidates = Adviser.objects.filter(
-            role=role_sf,
+            roles__in=[role_sf],
             specialism=specialism,
             is_active=True,
             assigned_count__lt=3,
@@ -58,5 +58,5 @@ class PersonAdmin(admin.ModelAdmin):
         CallDetail.objects.create(
             call=call,
             made_by=person.spiritual_father,
-            scheduled_date=timezone.now() + timedelta(minutes=5)
+            scheduled_date=timezone.now() + timedelta(minutes=4)
         )

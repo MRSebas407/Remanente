@@ -13,8 +13,8 @@ SPECIALISM_CHOICES = [
 SPECIALISM_MAP = {
     'joven': 'Joven',
     'normal': 'Normal',
-    'other_church': 'Normal',
-    'distance': 'Normal',
+    'other_church': 'Otra Iglesia',
+    'distance': 'Distancia',
 }
 
 
@@ -23,6 +23,7 @@ class Person(models.Model):
         ('pending', 'Pendiente'),
         ('assigned', 'Asignado'),
         ('completed', 'Completado'),
+        ('deactivated', 'Desactivado'),
     ]
 
     MEMBER_STATE_CHOICES = [
@@ -53,6 +54,7 @@ class Person(models.Model):
     enrollment_fund_1 = models.BooleanField(default=False)
     baptized = models.BooleanField(default=False)
     data_consent = models.BooleanField(default=False, verbose_name='Consentimiento de datos')
+    is_active = models.BooleanField(default=True, verbose_name='Activo')
 
     class Meta:
         db_table = 'Person'

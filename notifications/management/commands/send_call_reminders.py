@@ -5,8 +5,6 @@ from calls.models import CallDetail
 from notifications.models import Notification
 from notifications.services import OpenWAService
 
-# Fracciones del tiempo total de la llamada para cada aviso.
-# Ej: para 48h → aviso_1 = 24h (50%), aviso_2 = 12h (25%), aviso_3 = 6h (12.5%)
 REMINDER_FRACTIONS = [
     ('aviso_1', 0.50),
     ('aviso_2', 0.25),
@@ -15,8 +13,9 @@ REMINDER_FRACTIONS = [
 
 TEMPLATE = (
     '*Recordatorio de {call_number} llamada*\n'
-    'Hola {adviser}, te recordamos que tienes un plazo de {tiempo} '
-    'para llamar a {person}, recuerda estar atento a este chat o al panel '
+    'Hola {adviser}, te recordamos que te faltan {tiempo} '
+    'para llamar a *{person}*, su número es {phone}. '
+    'Recuerda estar atento a este chat o al panel '
     'de la aplicación en el cual te saldrán las personas que se te asignaron, '
     'muchas gracias.'
 )
@@ -25,11 +24,14 @@ CALL_NAMES = {1: 'Primera', 2: 'Segunda', 3: 'Tercera'}
 
 
 def format_tiempo(delta):
-    horas = delta.total_seconds() / 3600
-    if horas >= 24 and horas % 24 == 0:
-        dias = int(horas // 24)
-        return f'{dias} día' if dias == 1 else f'{dias} días'
-    return f'{int(horas)} horas'
+    total_sec = int(delta.total_seconds())
+    if total_sec <= 0:
+        return '0d:0h:0min:0s'
+    d = total_sec // 86400
+    h = (total_sec % 86400) // 3600
+    m = (total_sec % 3600) // 60
+    s = total_sec % 60
+    return f'{d}d:{h}h:{m}min:{s}s'
 
 
 class Command(BaseCommand):
@@ -45,7 +47,7 @@ class Command(BaseCommand):
         now = timezone.now()
         sent_count = 0
 
-        for call_detail in CallDetail.objects.filter(made=False, scheduled_date__gt=now):
+        for call_detail in CallDetail.objects.filter(made=False):
             adviser = call_detail.made_by
             person = call_detail.call.person
             phone = adviser.profile.phone
@@ -53,14 +55,18 @@ class Command(BaseCommand):
             person_name = f'{person.names} {person.lastname}'
             call_number = call_detail.call.call_number
 
-            total_window = call_detail.scheduled_date - call_detail.call.created_in
-            margin = max(total_window * 0.05, timedelta(seconds=15))
+            total = call_detail.scheduled_date - call_detail.call.created_in
+            total_sec = total.total_seconds()
+            if total_sec <= 0:
+                continue
+
+            elapsed = now - call_detail.call.created_in
+            pct_elapsed = min(elapsed.total_seconds() / total_sec, 1.0)
 
             for reminder_type, fraction in REMINDER_FRACTIONS:
-                delta = total_window * fraction
-                threshold = call_detail.scheduled_date - delta
+                required_elapsed = 1.0 - fraction
 
-                if not (threshold - margin <= now <= threshold + margin):
+                if pct_elapsed < required_elapsed:
                     continue
 
                 already_sent = Notification.objects.filter(
@@ -70,11 +76,14 @@ class Command(BaseCommand):
                 if already_sent:
                     continue
 
-                tiempo = format_tiempo(delta)
+                remaining = total * fraction
+                tiempo = format_tiempo(remaining)
+                person_phone = person.phone or ''
                 message = TEMPLATE.format(
                     adviser=adviser_name,
                     person=person_name,
                     tiempo=tiempo,
+                    phone=person_phone,
                     call_number=CALL_NAMES.get(call_number, call_number),
                 )
                 result = service.send_text(phone, message)

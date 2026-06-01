@@ -8,7 +8,7 @@ import { PersonDetail } from './person.model';
   standalone: true,
   imports: [DatePipe],
   template: `
-<div class="fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-hidden" (click)="close.emit()">
+<div class="fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-hidden">
   <div class="bg-accent shadow-xl w-full max-w-2xl mx-4 my-6 rounded-xl flex flex-col max-h-[calc(100vh-3rem)]" (click)="$event.stopPropagation()">
     <div class="flex justify-between items-center p-4 border-b border-theme">
       <h2 class="text-lg font-bold text-primary">{{ detail()?.names }} {{ detail()?.lastname }}</h2>
@@ -129,6 +129,9 @@ import { PersonDetail } from './person.model';
           }
         </div>
       }
+    </div>
+    <div class="p-4 border-t border-theme flex justify-end">
+      <button (click)="close.emit()" class="px-4 py-2 border border-theme rounded hover:bg-accent-hover transition-colors text-secondary text-sm">Cerrar</button>
     </div>
   </div>
 </div>

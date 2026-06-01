@@ -12,4 +12,6 @@ export interface UserInfo {
   must_change_password: boolean;
   theme: string;
   photo?: string | null;
+  names?: string | null;
+  last_name?: string | null;
 }

@@ -2,7 +2,7 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { PersonService } from './person.service';
-import { PersonListEntry } from './person.model';
+import { PersonListEntry, PersonStats } from './person.model';
 import { PersonCreate } from './person-create';
 import { PersonEdit } from './person-edit';
 import { PersonDetailComponent } from './person-detail';
@@ -20,10 +20,120 @@ import { AssignFather } from '../shared/assign-father';
     <div class="p-4 sm:p-6 max-w-6xl mx-auto space-y-4">
       <div class="flex items-center justify-between">
         <h2 class="text-xl font-semibold text-primary">Listado de Personas</h2>
-        <button (click)="createModalOpen.set(true)"
-          class="text-xs px-4 py-2 rounded-lg bg-primary text-on-primary hover:bg-primary-hover transition-colors"
-        >+ Nueva Persona</button>
+        @if (!isTeacher) {
+          <button (click)="createModalOpen.set(true)"
+            class="text-xs px-4 py-2 rounded-lg bg-primary text-on-primary hover:bg-primary-hover transition-colors"
+          >+ Nueva Persona</button>
+        }
       </div>
+
+      @if (stats(); as s) {
+        @if (isAdmin) {
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
+              [class.opacity-40]="s.assigned === 0"
+              [class.border-primary]="activeFilter() === 'assigned'"
+              [class.border-theme]="activeFilter() !== 'assigned'"
+              (click)="toggleFilter('assigned')">
+              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Asignados</p>
+              <p class="text-xl font-bold text-green-600 mt-0.5">{{ s.assigned }}</p>
+            </div>
+            <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
+              [class.opacity-40]="s.pending === 0"
+              [class.border-primary]="activeFilter() === 'pending'"
+              [class.border-theme]="activeFilter() !== 'pending'"
+              (click)="toggleFilter('pending')">
+              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Pendientes</p>
+              <p class="text-xl font-bold text-amber-600 mt-0.5">{{ s.pending }}</p>
+            </div>
+            <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
+              [class.opacity-40]="s.enrolled_not_baptized === 0"
+              [class.border-primary]="activeFilter() === 'enrolled_not_baptized'"
+              [class.border-theme]="activeFilter() !== 'enrolled_not_baptized'"
+              (click)="toggleFilter('enrolled_not_baptized')">
+              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Completó</p>
+              <p class="text-xl font-bold text-purple-600 mt-0.5">{{ s.enrolled_not_baptized }}</p>
+            </div>
+            <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
+              [class.opacity-40]="(s.registered_baptism ?? 0) === 0"
+              [class.border-primary]="activeFilter() === 'registered_baptism'"
+              [class.border-theme]="activeFilter() !== 'registered_baptism'"
+              (click)="toggleFilter('registered_baptism')">
+              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Pend. Bautizo</p>
+              <p class="text-xl font-bold text-amber-600 mt-0.5">{{ s.registered_baptism ?? 0 }}</p>
+            </div>
+            <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
+              [class.opacity-40]="s.baptized === 0"
+              [class.border-primary]="activeFilter() === 'baptized'"
+              [class.border-theme]="activeFilter() !== 'baptized'"
+              (click)="toggleFilter('baptized')">
+              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Bautizados</p>
+              <p class="text-xl font-bold text-blue-600 mt-0.5">{{ s.baptized }}</p>
+            </div>
+            <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
+              [class.opacity-40]="s.inactive === 0"
+              [class.border-primary]="activeFilter() === 'deactivated'"
+              [class.border-theme]="activeFilter() !== 'deactivated'"
+              (click)="toggleFilter('deactivated')">
+              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Desactivados</p>
+              <p class="text-xl font-bold text-red-600 mt-0.5">{{ s.inactive }}</p>
+            </div>
+            <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
+              [class.border-primary]="activeFilter() === 'all'"
+              [class.border-theme]="activeFilter() !== 'all'"
+              (click)="toggleFilter('all')">
+              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Total</p>
+              <p class="text-xl font-bold text-primary mt-0.5">{{ s.total }}</p>
+            </div>
+          </div>
+        } @else if (isTeacher) {
+          <div class="grid grid-cols-3 gap-3">
+            <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
+              [class.opacity-40]="s.assigned === 0"
+              [class.border-primary]="activeFilter() === 'assigned'"
+              [class.border-theme]="activeFilter() !== 'assigned'"
+              (click)="toggleFilter('assigned')">
+              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Asignados</p>
+              <p class="text-xl font-bold text-green-600 mt-0.5">{{ s.assigned }}</p>
+            </div>
+            <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
+              [class.opacity-40]="(s.enrolled_not_baptized ?? 0) === 0"
+              [class.border-primary]="activeFilter() === 'enrolled_not_baptized'"
+              [class.border-theme]="activeFilter() !== 'enrolled_not_baptized'"
+              (click)="toggleFilter('enrolled_not_baptized')">
+              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Completó Fundamentos</p>
+              <p class="text-xl font-bold text-purple-600 mt-0.5">{{ s.enrolled_not_baptized ?? 0 }}</p>
+            </div>
+            <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
+              [class.opacity-40]="(s.registered_baptism ?? 0) === 0"
+              [class.border-primary]="activeFilter() === 'registered_baptism'"
+              [class.border-theme]="activeFilter() !== 'registered_baptism'"
+              (click)="toggleFilter('registered_baptism')">
+              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Pend. Bautizo</p>
+              <p class="text-xl font-bold text-amber-600 mt-0.5">{{ s.registered_baptism ?? 0 }}</p>
+            </div>
+          </div>
+        } @else {
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
+              [class.opacity-40]="s.assigned === 0"
+              [class.border-primary]="activeFilter() === 'assigned'"
+              [class.border-theme]="activeFilter() !== 'assigned'"
+              (click)="toggleFilter('assigned')">
+              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Asignados</p>
+              <p class="text-xl font-bold text-green-600 mt-0.5">{{ s.assigned }}</p>
+            </div>
+            <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
+              [class.opacity-40]="(s.pending_fundamentals ?? 0) === 0"
+              [class.border-primary]="activeFilter() === 'pending_fundamentals'"
+              [class.border-theme]="activeFilter() !== 'pending_fundamentals'"
+              (click)="toggleFilter('pending_fundamentals')">
+              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Fundamentos</p>
+              <p class="text-xl font-bold text-purple-600 mt-0.5">{{ s.pending_fundamentals ?? 0 }}</p>
+            </div>
+          </div>
+        }
+      }
 
       <div class="bg-accent rounded-xl border border-theme overflow-hidden">
         <table class="w-full text-sm">
@@ -64,12 +174,21 @@ import { AssignFather } from '../shared/assign-father';
                   class="mt-1 w-full px-2 py-1 text-xs border border-theme rounded bg-accent text-primary focus:outline-none focus:ring-1 focus:ring-black/20">
                   <option value="">Todos</option>
                   <option value="assigned">Asignado</option>
-                  <option value="pending">Pendiente</option>
-                  <option value="completed">Completado</option>
+                  @if (isAdmin) {
+                    <option value="pending">Pendiente</option>
+                    <option value="completed">Completado</option>
+                    <option value="deactivated">Desactivado</option>
+                  }
                 </select>
               </th>
               <th class="px-3 py-2 text-right">
-                <span class="text-xs font-medium text-secondary uppercase tracking-wide">Acciones</span>
+                <div class="flex items-center justify-end gap-1">
+                  <span class="text-xs font-medium text-secondary uppercase tracking-wide">Acciones</span>
+                  @if (hasActiveFilters()) {
+                    <button (click)="clearFilters()" title="Limpiar filtros"
+                      class="ml-1 text-xs text-red-500 hover:text-red-700 underline">Limpiar</button>
+                  }
+                </div>
               </th>
             </tr>
           </thead>
@@ -99,6 +218,7 @@ import { AssignFather } from '../shared/assign-father';
                         [class.bg-blue-50]="p.assignment_state==='pending'" [class.text-blue-700]="p.assignment_state==='pending'"
                         [class.bg-green-50]="p.assignment_state==='assigned'" [class.text-green-700]="p.assignment_state==='assigned'"
                         [class.bg-gray-100]="p.assignment_state==='completed'" [class.text-gray-600]="p.assignment_state==='completed'"
+                        [class.bg-red-50]="p.assignment_state==='deactivated'" [class.text-red-700]="p.assignment_state==='deactivated'"
                       >{{ stateLabel(p.assignment_state) }}</span>
                       @if (p.baptized) {
                         <span class="text-xs text-yellow-600 font-medium">Bautizado</span>
@@ -110,40 +230,57 @@ import { AssignFather } from '../shared/assign-father';
                       class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-accent-hover transition-colors text-secondary">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                     </button>
-                    @if (!isTeacher) {
-                      <button (click)="openEdit(p.id)" title="Editar"
-                        class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-accent-hover transition-colors text-secondary">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                      </button>
+                    @if (!p.is_active) {
+                      @if (isAdmin) {
+                        <button (click)="confirmReactivate(p)" title="Activar"
+                          class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-green-50 transition-colors text-green-500">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        </button>
+                      }
+                    } @else {
+                      @if (!isTeacher) {
+                        <button (click)="openEdit(p.id)" title="Editar"
+                          class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-accent-hover transition-colors text-secondary">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        </button>
+                      }
+                      @if (!isTeacher) {
+                        <button (click)="goToCalls(p)" title="Ver llamadas"
+                          class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-green-50 transition-colors text-green-500">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                        </button>
+                      }
+                      @if (isAdmin) {
+                        <button (click)="confirmDeactivate(p)" title="Desactivar"
+                          class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-red-50 transition-colors text-red-500">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                      }
+                      @if (isAdmin) {
+                        <button (click)="assignFatherPerson.set(p)" title="Asignar padre espiritual"
+                          class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-blue-50 transition-colors text-blue-500">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                        </button>
+                      }
+                      @if (!isTeacher && !p.enrollment_fund_1 && p.member_state === 'effective') {
+                        <button (click)="confirmEnroll(p)" title="Inscribir a fundamentos"
+                          class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-purple-50 transition-colors text-purple-500">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                        </button>
+                      }
+                      @if (p.enrollment_fund_1 && !p.baptized && !p.has_baptism) {
+                        <button (click)="goToBaptisms(p)" title="Registrar bautizo"
+                          class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-yellow-50 transition-colors text-yellow-500">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        </button>
+                      }
+                      @if (p.has_baptism) {
+                        <button (click)="viewBaptism(p)" title="Ir a bautizos"
+                          class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-cyan-50 transition-colors text-cyan-500">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/></svg>
+                        </button>
+                      }
                     }
-                    @if (!isTeacher) {
-                      <button (click)="goToCalls(p)" title="Ver llamadas"
-                        class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-green-50 transition-colors text-green-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
-                      </button>
-                    }
-                    @if (isAdmin) {
-                      <button (click)="assignFatherPerson.set(p)" title="Asignar padre espiritual"
-                        class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-blue-50 transition-colors text-blue-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
-                      </button>
-                    }
-                    @if (!isTeacher && !p.enrollment_fund_1 && p.member_state === 'effective') {
-                      <button (click)="confirmEnroll(p)" title="Inscribir a fundamentos"
-                        class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-purple-50 transition-colors text-purple-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                      </button>
-                    }
-                    @if (p.enrollment_fund_1 && !p.baptized && !p.has_baptism) {
-                      <button (click)="goToBaptisms(p)" title="Registrar bautizo"
-                        class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-yellow-50 transition-colors text-yellow-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                      </button>
-                    }
-                    <button (click)="viewBaptism(p)" title="Ir a bautizos"
-                      class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-cyan-50 transition-colors text-cyan-500">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/></svg>
-                    </button>
                   </td>
                 </tr>
               }
@@ -200,14 +337,14 @@ export class PersonList implements OnInit {
   private confirm = inject(ConfirmService);
 
   persons = signal<PersonListEntry[]>([]);
+  stats = signal<PersonStats | null>(null);
   loading = signal(false);
   page = 1;
   totalItems = 0;
   totalPages = 0;
   pageSize = 10;
-  role = this.auth.getUserRole();
-  isAdmin = this.role === 'Administrador';
-  isTeacher = this.role === 'Maestro';
+  isAdmin = this.auth.isAdmin();
+  isTeacher = this.auth.isTeacher();
 
   filters = {
     name: '',
@@ -216,6 +353,9 @@ export class PersonList implements OnInit {
     specialism: '',
     assignment_state: '',
   };
+
+  activeFilter = signal('');
+  private currentFilterKey = '';
 
   detailModalOpen = signal(false);
   detailPersonId = signal(0);
@@ -227,18 +367,88 @@ export class PersonList implements OnInit {
   private filterTimeout: any;
 
   ngOnInit(): void {
+    this.loadStats();
+    this.loadPage(1);
+  }
+
+  private loadStats(): void {
+    this.service.getStats().subscribe(s => this.stats.set(s));
+  }
+
+  toggleFilter(key: string): void {
+    if (key === 'all') {
+      this.activeFilter.set('');
+      this.currentFilterKey = '';
+      this.filters.assignment_state = '';
+      this.loadPage(1);
+      return;
+    }
+
+    const zeroCounts: Record<string, number> = {
+      assigned: this.stats()?.assigned ?? 0,
+      pending: this.stats()?.pending ?? 0,
+      deactivated: this.stats()?.inactive ?? 0,
+      enrolled_not_baptized: this.stats()?.enrolled_not_baptized ?? 0,
+      pending_fundamentals: this.stats()?.pending_fundamentals ?? 0,
+      registered_baptism: this.stats()?.registered_baptism ?? 0,
+    };
+
+    const count = zeroCounts[key];
+    if (count !== undefined && count === 0 && key !== 'all') return;
+
+    if (this.currentFilterKey === key) {
+      this.activeFilter.set('');
+      this.currentFilterKey = '';
+      this.filters.assignment_state = '';
+      this.loadPage(1);
+      return;
+    }
+
+    this.currentFilterKey = key;
+    if (['assigned', 'pending', 'deactivated'].includes(key)) {
+      this.filters.assignment_state = key;
+    } else {
+      this.filters.assignment_state = '';
+    }
+    this.activeFilter.set(key);
     this.loadPage(1);
   }
 
   onFilterChange(): void {
+    if (this.filters.assignment_state) {
+      this.activeFilter.set(this.filters.assignment_state);
+    } else {
+      this.activeFilter.set('');
+    }
+    this.currentFilterKey = '';
     clearTimeout(this.filterTimeout);
     this.filterTimeout = setTimeout(() => this.loadPage(1), 300);
+  }
+
+  hasActiveFilters(): boolean {
+    return !!(this.filters.name || this.filters.document || this.filters.phone || this.filters.specialism || this.filters.assignment_state || this.currentFilterKey);
+  }
+
+  clearFilters(): void {
+    this.filters.name = '';
+    this.filters.document = '';
+    this.filters.phone = '';
+    this.filters.specialism = '';
+    this.filters.assignment_state = '';
+    this.activeFilter.set('');
+    this.currentFilterKey = '';
+    this.loadPage(1);
   }
 
   loadPage(p: number): void {
     this.page = p;
     const isFirstLoad = this.persons().length === 0;
     if (isFirstLoad) this.loading.set(true);
+    const extra: any = {};
+    const customKeys = ['enrolled_not_baptized', 'pending_fundamentals', 'registered_baptism', 'baptized'];
+    if (customKeys.includes(this.currentFilterKey)) {
+      extra[this.currentFilterKey] = '1';
+    }
     this.service.list({
       name: this.filters.name || undefined,
       document: this.filters.document || undefined,
@@ -246,12 +456,13 @@ export class PersonList implements OnInit {
       specialism: this.filters.specialism || undefined,
       assignment_state: this.filters.assignment_state || undefined,
       page: this.page,
-      page_size: this.pageSize > 0 ? this.pageSize : undefined,
+      page_size: this.pageSize || 99999,
+      ...extra,
     }).subscribe({
       next: (res) => {
         this.persons.set(res.results);
         this.totalItems = res.count;
-        this.totalPages = Math.ceil(res.count / (this.pageSize > 0 ? this.pageSize : 1));
+        this.totalPages = this.pageSize > 0 ? Math.ceil(res.count / this.pageSize) : 1;
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
@@ -275,7 +486,7 @@ export class PersonList implements OnInit {
   }
 
   stateLabel(v: string): string {
-    return { pending: 'Pendiente', assigned: 'Asignado', completed: 'Completado' }[v] || v;
+    return { pending: 'Pendiente', assigned: 'Asignado', completed: 'Completado', deactivated: 'Desactivado' }[v] || v;
   }
 
   openDetail(id: number): void {
@@ -294,7 +505,7 @@ export class PersonList implements OnInit {
 
   goToBaptisms(p: PersonListEntry): void {
     this.baptismService.quickRegister(p.id).subscribe({
-      next: () => { this.toast.success('Registro de bautizo creado'); this.loadPage(this.page); },
+      next: () => { this.toast.success('Registro de bautizo creado'); this.loadStats(); this.loadPage(this.page); },
       error: (err) => { this.toast.error(err.error?.error || 'Error al crear registro'); },
     });
   }
@@ -310,19 +521,57 @@ export class PersonList implements OnInit {
   onEditSaved(): void {
     this.closeEdit();
     this.toast.success('Persona actualizada correctamente');
+    this.loadStats();
     this.loadPage(this.page);
   }
 
   onCreateSaved(): void {
     this.createModalOpen.set(false);
     this.toast.success('Persona registrada correctamente');
+    this.loadStats();
     this.loadPage(1);
   }
 
   onFatherAssigned(): void {
     this.assignFatherPerson.set(null);
     this.toast.success('Padre espiritual asignado');
+    this.loadStats();
     this.loadPage(this.page);
+  }
+
+  async confirmReactivate(p: PersonListEntry): Promise<void> {
+    const ok = await this.confirm.confirm({
+      title: 'Activar persona',
+      message: `¿Activar a ${p.names} ${p.lastname}?`,
+      confirmText: 'Activar',
+    });
+    if (!ok) return;
+    this.service.reactivate(p.id).subscribe({
+      next: () => {
+        this.toast.success('Persona activada correctamente');
+        this.loadStats();
+        this.loadPage(this.page);
+      },
+      error: (err) => this.toast.error(err.error?.error || 'Error al activar'),
+    });
+  }
+
+  async confirmDeactivate(p: PersonListEntry): Promise<void> {
+    const ok = await this.confirm.confirm({
+      title: 'Desactivar persona',
+      message: `¿Desactivar a ${p.names} ${p.lastname}? Se liberará su asignación actual.`,
+      confirmText: 'Desactivar',
+      danger: true,
+    });
+    if (!ok) return;
+    this.service.deactivate(p.id).subscribe({
+      next: () => {
+        this.toast.success('Persona desactivada correctamente');
+        this.loadStats();
+        this.loadPage(this.page);
+      },
+      error: (err) => this.toast.error(err.error?.error || 'Error al desactivar'),
+    });
   }
 
   async confirmEnroll(p: PersonListEntry): Promise<void> {
@@ -333,7 +582,7 @@ export class PersonList implements OnInit {
     });
     if (!ok) return;
     this.service.enrollFundamentals(p.id).subscribe({
-      next: () => { this.toast.success('Inscrito a Fundamentos 1'); this.loadPage(this.page); },
+      next: () => { this.toast.success('Inscrito a Fundamentos 1'); this.loadStats(); this.loadPage(this.page); },
       error: (err) => {
         const msg = err.error?.error || err.error?.detail || 'Error al inscribir';
         this.toast.error(msg);

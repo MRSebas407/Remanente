@@ -88,7 +88,7 @@ export class ManagerTable {
   standalone: true,
   imports: [FormsModule, ManagerTable],
   template: `
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" (click)="close.emit()">
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div class="bg-accent rounded-xl border border-theme shadow-2xl p-6 max-w-2xl w-full mx-4 max-h-[85vh] flex flex-col" (click)="$event.stopPropagation()">
         <div class="flex items-center justify-between mb-4 shrink-0">
           <h3 class="text-lg font-semibold text-primary">{{ tabLabels[activeTab] }}</h3>
@@ -161,6 +161,10 @@ export class ManagerTable {
             @case (3) { <div app-manager-table [items]="modes()" [fields]="modeFields" (create)="createMode($event)" (update)="updateMode($event)" (remove)="deleteMode($event)" [allowDelete]="allowDelete"></div> }
           }
         </div>
+
+        <div class="pt-4 border-t border-theme flex justify-end shrink-0 mt-4">
+          <button (click)="close.emit()" class="px-4 py-2 border border-theme rounded hover:bg-accent-hover transition-colors text-secondary text-sm">Cerrar</button>
+        </div>
       </div>
     </div>
   `,
@@ -175,7 +179,7 @@ export class BaptismManager implements OnInit {
 
   personId = input<number>(0);
   initialTab = input(0);
-  allowDelete = this.auth.getUserRole() === 'Administrador';
+  allowDelete = this.auth.isAdmin();
   activeTab = 0;
   tabs = ['attendants', 'classes', 'calendars', 'modes'];
   tabLabels = ['Acudientes', 'Clases', 'Calendarios', 'Modalidades'];

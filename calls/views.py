@@ -19,10 +19,9 @@ class IsAdminOrSpiritualFather(BasePermission):
             return False
         try:
             adviser = request.user.register_profile.adviser_profile
-            role = adviser.role.name
-            if role == 'Administrador':
+            if adviser.is_admin():
                 return True
-            if role == 'Padre Espiritual' and request.method in SAFE_METHODS + ('POST', 'PUT', 'PATCH'):
+            if adviser.is_spiritual_father() and request.method in SAFE_METHODS + ('POST', 'PUT', 'PATCH'):
                 return True
             return False
         except:
@@ -36,7 +35,7 @@ class CallViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         try:
             adviser = request.user.register_profile.adviser_profile
-            if adviser.role.name != 'Administrador':
+            if not adviser.is_admin():
                 return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
         except:
             return Response(status=status.HTTP_403_FORBIDDEN)
@@ -74,30 +73,47 @@ class CallViewSet(viewsets.ModelViewSet):
 
         adviser = request.user.register_profile.adviser_profile
         data = request.data.copy() if request.data else {}
-        if 'signature' not in data and adviser.signature:
-            data['signature'] = adviser.signature
 
         serializer = CallDetailSerializer(detail, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save(made=True, date_made=timezone.now())
 
-        if call.call_number in (1, 2):
-            from notifications.services import OpenWAService
-            result = OpenWAService().notify_call_recorded(adviser, call.person, call.call_number)
-            if not result.get('success'):
-                logger.warning('Notification record_call #%s failed for adviser %s: %s',
-                               call.call_number, adviser.id, result.get('error'))
+        if 'signature' not in request.data and adviser.signature:
+            try:
+                from django.core.files.base import ContentFile
+                adviser.signature.open()
+                content = adviser.signature.read()
+                adviser.signature.close()
+                detail.signature.save('signature.png', ContentFile(content))
+                detail.save(update_fields=['signature'])
+            except Exception as e:
+                logger.warning(f'Could not copy adviser signature: {e}')
 
-        # Auto-crear siguiente llamada si corresponde
+        warnings = []
+
+        # Auto-crear siguiente llamada si corresponde (antes de la notificación para conocer next_delay)
+        next_delay = None
         if call.call_number < 3:
             next_number = call.call_number + 1
             delay = timedelta(minutes=10) if next_number == 2 else timedelta(minutes=15)
+            next_delay = delay
             next_call = Call.objects.create(person=call.person, call_number=next_number)
             CallDetail.objects.create(
                 call=next_call,
                 made_by=detail.made_by,
                 scheduled_date=timezone.now() + delay
             )
+
+        if call.call_number in (1, 2):
+            from notifications.services import OpenWAService
+            recipient = call.person.spiritual_father or adviser
+            logger.info('Sending call_recorded notification for call #%s to phone: %s (recipient %s)',
+                        call.call_number, recipient.profile.phone, recipient.id)
+            result = OpenWAService().notify_call_recorded(adviser, call.person, call.call_number, next_delay)
+            if not result.get('success'):
+                logger.warning('Notification record_call #%s failed for adviser %s: %s',
+                               call.call_number, adviser.id, result.get('error'))
+                warnings.append(f'No se pudo enviar notificación WhatsApp: {result.get("error")}')
 
         # Si es la tercera llamada, verificar si todas fueron exitosas
         if call.call_number == 3:
@@ -112,12 +128,21 @@ class CallViewSet(viewsets.ModelViewSet):
                     person.spiritual_father.save()
                 person.save()
                 from notifications.services import OpenWAService
+                recipient = person.spiritual_father or adviser
+                logger.info('Sending third_call_completed notification to phone: %s (recipient %s)',
+                            recipient.profile.phone, recipient.id)
                 result = OpenWAService().notify_third_call_completed(adviser, person)
                 if not result.get('success'):
                     logger.warning('Notification third_call_completed failed for adviser %s: %s',
                                    adviser.id, result.get('error'))
+                    warnings.append(f'No se pudo enviar notificación WhatsApp: {result.get("error")}')
 
-        return Response(serializer.data)
+        resp_data = serializer.data
+        if detail.signature:
+            resp_data['signature'] = request.build_absolute_uri(detail.signature.url)
+        if warnings:
+            resp_data['notification_warnings'] = warnings
+        return Response(resp_data)
 
     @action(detail=False, methods=['get'])
     def pending_calls(self, request):
@@ -128,7 +153,7 @@ class CallViewSet(viewsets.ModelViewSet):
             return Response({'error': 'No eres asesor'}, status=status.HTTP_403_FORBIDDEN)
 
         now = timezone.now()
-        if adviser.role.name == 'Administrador':
+        if adviser.is_admin():
             details = CallDetail.objects.filter(
                 made=False,
                 scheduled_date__gte=now
@@ -161,6 +186,7 @@ class CallViewSet(viewsets.ModelViewSet):
                 'person_name': f'{d.call.person.names} {d.call.person.lastname}',
                 'call_number': d.call.call_number,
                 'scheduled_date': d.scheduled_date,
+                'created_in': d.call.created_in,
                 'remaining_hours': remaining.total_seconds() / 3600,
                 'color': color,
             })
@@ -177,7 +203,7 @@ class CallViewSet(viewsets.ModelViewSet):
 
         now = timezone.now()
 
-        if adviser.role.name == 'Administrador':
+        if adviser.is_admin():
             details = CallDetail.objects.all().select_related('call', 'call__person', 'made_by', 'made_by__profile')
         else:
             details = CallDetail.objects.filter(
@@ -195,15 +221,23 @@ class CallViewSet(viewsets.ModelViewSet):
 
         made_by = request.query_params.get('made_by')
         if made_by:
-            details = details.filter(made_by_id=made_by)
+            terms = made_by.split()
+            q = Q()
+            for term in terms:
+                q &= (Q(made_by__profile__names__icontains=term) | Q(made_by__profile__last_name__icontains=term))
+            details = details.filter(q)
 
         state_filter = request.query_params.get('state')
         if state_filter == 'pending':
             details = details.filter(made=False)
+        elif state_filter == 'expired':
+            details = details.filter(made=False, scheduled_date__lt=now)
         elif state_filter == 'effective':
             details = details.filter(made=True, state='effective')
         elif state_filter == 'not_effective':
             details = details.filter(made=True, state='not_effective')
+        elif state_filter == 'made':
+            details = details.filter(made=True)
 
         paginator = FlexiblePageNumberPagination()
         paginator.page_size = request.query_params.get('page_size', paginator.page_size)
@@ -241,11 +275,12 @@ class CallViewSet(viewsets.ModelViewSet):
                 'person_name': f'{d.call.person.names} {d.call.person.lastname}',
                 'call_number': d.call.call_number,
                 'scheduled_date': d.scheduled_date,
+                'created_in': d.call.created_in,
                 'date_made': d.date_made,
                 'made': d.made,
                 'state': d.state,
                 'annotation': d.annotation,
-                'signature': d.signature.url if d.signature else None,
+                'signature': request.build_absolute_uri(d.signature.url) if d.signature else None,
                 'made_by_id': d.made_by.id,
                 'made_by_name': f'{d.made_by.profile.names} {d.made_by.profile.last_name}',
                 'color': color,
@@ -272,7 +307,7 @@ class CallDetailViewSet(viewsets.ModelViewSet):
         user = self.request.user
         try:
             adviser = user.register_profile.adviser_profile
-            if adviser.role.name == 'Padre Espiritual':
+            if adviser.is_spiritual_father():
                 qs = qs.filter(made_by=adviser)
         except:
             pass

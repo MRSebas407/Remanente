@@ -57,6 +57,7 @@ def get_dashboard_data(start_date=None, end_date=None, period='monthly'):
 
     total = qs.count()
     new_count = qs.exclude(specialism='other_church').count()
+    other_church_count = qs.filter(specialism='other_church').count()
     effective = qs.filter(member_state='effective').count()
     baptized = qs.filter(baptized=True).count()
 
@@ -69,6 +70,7 @@ def get_dashboard_data(start_date=None, end_date=None, period='monthly'):
         .annotate(
             total=Count('id'),
             new_people=Count('id', filter=~Q(specialism='other_church')),
+            other_church=Count('id', filter=Q(specialism='other_church')),
             effective=Count('id', filter=Q(member_state='effective')),
             baptized=Count('id', filter=Q(baptized=True)),
         )
@@ -80,6 +82,7 @@ def get_dashboard_data(start_date=None, end_date=None, period='monthly'):
             'date': str(entry['date']),
             'total': entry['total'],
             'new_people': entry['new_people'],
+            'other_church': entry['other_church'],
             'effective': entry['effective'],
             'baptized': entry['baptized'],
         }
@@ -90,6 +93,7 @@ def get_dashboard_data(start_date=None, end_date=None, period='monthly'):
         'summary': {
             'total_registered': total,
             'new_people': new_count,
+            'other_church': other_church_count,
             'effective': effective,
             'baptized': baptized,
         },
@@ -104,6 +108,8 @@ def get_adviser_stats(adviser):
     if adviser is None:
         persons = Person.objects.all()
         call_details = CallDetail.objects.filter(call__person__in=persons)
+        person_ids = persons.values_list('id', flat=True)
+        baptism_registers = BaptismalRegister.objects.all()
     else:
         persons = Person.objects.filter(spiritual_father=adviser)
         person_ids = persons.values_list('id', flat=True)
@@ -111,6 +117,7 @@ def get_adviser_stats(adviser):
             call__person_id__in=person_ids,
             made_by=adviser,
         )
+        baptism_registers = BaptismalRegister.objects.filter(teacher=adviser)
 
     pending_calls = call_details.filter(made=False, scheduled_date__gte=timezone.now()).count()
     expired_calls = call_details.filter(made=False, scheduled_date__lt=timezone.now()).count()
@@ -121,31 +128,25 @@ def get_adviser_stats(adviser):
     total_assigned = persons.count()
     baptized = persons.filter(baptized=True).count()
 
+    pending_baptism = persons.filter(
+        baptized=False,
+        enrollment_fund_1=True,
+    ).count()
+    registered_baptism = baptism_registers.filter(baptized=False).count()
+    baptized_baptism = baptism_registers.filter(baptized=True).count()
+
     stats = {
         'total_assigned': total_assigned,
+        'total_baptism': baptism_registers.count(),
         'pending_calls': pending_calls,
         'expired_calls': expired_calls,
         'made_calls': made_calls,
         'effective_calls': effective_calls,
         'not_effective_calls': not_effective_calls,
         'baptized': baptized,
+        'pending_baptism': pending_baptism,
+        'registered_baptism': registered_baptism,
+        'baptized_baptism': baptized_baptism,
     }
-
-    if adviser and adviser.role.name == 'Maestro':
-        pending_baptism = persons.filter(
-            baptized=False,
-            enrollment_fund_1=True,
-        ).count()
-        registered_baptism = BaptismalRegister.objects.filter(
-            person_id__in=person_ids,
-            baptized=False,
-        ).count()
-        baptized_count = BaptismalRegister.objects.filter(
-            person_id__in=person_ids,
-            baptized=True,
-        ).count()
-        stats['pending_baptism'] = pending_baptism
-        stats['registered_baptism'] = registered_baptism
-        stats['baptized_baptism'] = baptized_count
 
     return stats

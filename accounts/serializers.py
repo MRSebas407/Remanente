@@ -71,7 +71,7 @@ class SpecialismSerializer(serializers.ModelSerializer):
 
 class AdviserSerializer(serializers.ModelSerializer):
     profile = RegisterUserSerializer(read_only=True)
-    role = RoleSerializer(read_only=True)
+    roles = RoleSerializer(many=True, read_only=True)
     specialism = SpecialismSerializer(read_only=True)
     username = serializers.CharField(write_only=True)
     email = serializers.EmailField(write_only=True)
@@ -156,19 +156,16 @@ class AdviserSerializer(serializers.ModelSerializer):
 
 class AdviserListSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
-    role_name = serializers.SerializerMethodField()
+
     document = serializers.CharField(source='profile.document')
     phone = serializers.CharField(source='profile.phone')
 
     class Meta:
         model = Adviser
-        fields = ['id', 'full_name', 'role_name', 'document', 'phone', 'is_active', 'assigned_count', 'signature']
+        fields = ['id', 'full_name', 'roles', 'document', 'phone', 'is_active', 'assigned_count', 'signature']
 
     def get_full_name(self, obj):
         return f'{obj.profile.names} {obj.profile.last_name}'
-
-    def get_role_name(self, obj):
-        return obj.role.name
 
 
 class LoginSerializer(serializers.Serializer):

@@ -11,22 +11,25 @@ class RoleBasedRouter(DefaultRouter):
         class RoleBasedAPIRoot(origin_root):
             def get(self, request, *args, **kwargs):
                 data = {}
-                role_name = None
+                role_names = []
                 try:
                     adviser = request.user.register_profile.adviser_profile
-                    role_name = adviser.role.name
+                    role_names = list(adviser.roles.values_list('name', flat=True))
                 except Exception:
-                    role_name = None
+                    pass
 
+                is_admin = 'Administrador' in role_names
+                is_sf = 'Padre Espiritual' in role_names
+                is_teacher = 'Maestro' in role_names
                 is_auth = request.user.is_authenticated
 
                 for key, url_name in self.api_root_dict.items():
-                    if role_name == 'Administrador':
+                    if is_admin:
                         use_entry = True
-                    elif role_name == 'Padre Espiritual':
-                        hidden = ['advisers', 'roles', 'users', 'dashboard']
-                        use_entry = key not in hidden
-                    elif role_name == 'Maestro':
+                    elif is_sf:
+                        forbidden = ['advisers', 'roles', 'users', 'dashboard']
+                        use_entry = key not in forbidden
+                    elif is_teacher:
                         allowed = ['specialisms', 'countries', 'cities',
                                    'neighborhoods', 'services',
                                    'baptisms', 'attendants',

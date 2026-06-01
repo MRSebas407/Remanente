@@ -34,7 +34,7 @@ class Command(BaseCommand):
     help = 'Seed demo data for graph testing'
 
     def handle(self, *args, **kwargs):
-        if not Adviser.objects.filter(role__name='Padre Espiritual').exists():
+        if not Adviser.objects.filter(roles__name='Padre Espiritual').exists():
             self.stdout.write(self.style.WARNING('Run seed_data first'))
             return
 
@@ -47,9 +47,9 @@ class Command(BaseCommand):
         neighborhood, _ = Neighborhood.objects.get_or_create(name='Centro', city=city)
         service, _ = ChurchService.objects.get_or_create(name='Domingo 10am', defaults={'description': 'Servicio dominical', 'is_active': True})
 
-        padres_m = list(Adviser.objects.filter(role__name='Padre Espiritual', profile__gender='M'))
-        padres_f = list(Adviser.objects.filter(role__name='Padre Espiritual', profile__gender='F'))
-        maestro = Adviser.objects.filter(role__name='Maestro').first()
+        padres_m = list(Adviser.objects.filter(roles__name='Padre Espiritual', profile__gender='M'))
+        padres_f = list(Adviser.objects.filter(roles__name='Padre Espiritual', profile__gender='F'))
+        maestro = Adviser.objects.filter(roles__name='Maestro').first()
 
         now = timezone.now()
         doc_id = 20000000
@@ -156,7 +156,7 @@ class Command(BaseCommand):
 
         if maestro:
             for p in Person.objects.filter(baptized=False, enrollment_fund_1=True, spiritual_father__isnull=False)[:5]:
-                if p.spiritual_father.role.name == 'Maestro':
+                if p.spiritual_father.is_teacher():
                     continue
                 old_father = p.spiritual_father
                 p.spiritual_father = maestro

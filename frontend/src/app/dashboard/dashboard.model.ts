@@ -1,6 +1,7 @@
 export interface DashboardSummary {
   total_registered: number;
   new_people: number;
+  other_church: number;
   effective: number;
   baptized: number;
 }
@@ -9,6 +10,7 @@ export interface TrendEntry {
   date: string;
   total: number;
   new_people: number;
+  other_church: number;
   effective: number;
   baptized: number;
 }

@@ -1,4 +1,5 @@
 import { Component, inject, OnInit, OnDestroy, signal, viewChild, ElementRef } from '@angular/core';
+import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
@@ -17,6 +18,7 @@ import {
   Legend,
   BarController,
 } from 'chart.js';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 
 @Component({
   selector: 'app-dashboard',
@@ -64,43 +66,72 @@ import {
               <h3 class="text-sm font-semibold text-primary mb-3">Llamadas Pendientes</h3>
               <div class="space-y-2">
                 @for (c of pendingCalls(); track c.detail_id) {
-                  <div class="flex items-center gap-3 p-2 rounded-lg border border-theme/50">
+                  <div class="flex items-center gap-3 p-2 rounded-lg border border-theme/50 cursor-pointer hover:bg-accent-hover transition-colors" (click)="goToCalls(c)">
                     <span class="inline-block w-3 h-3 rounded-full shrink-0"
-                      [class.bg-green-500]="c.color==='green'"
-                      [class.bg-yellow-400]="c.color==='yellow'"
-                      [class.bg-orange-400]="c.color==='orange'"
-                      [class.bg-red-500]="c.color==='red'"
+                      [class.bg-green-500]="callColor(c)==='green'"
+                      [class.bg-yellow-400]="callColor(c)==='yellow'"
+                      [class.bg-orange-400]="callColor(c)==='orange'"
+                      [class.bg-red-500]="callColor(c)==='red'"
                     ></span>
                     <span class="flex-1 text-sm text-primary">{{ c.person_name }}</span>
                     <span class="text-xs text-secondary">#{{ c.call_number }}</span>
                     <span class="text-xs font-medium"
-                      [class.text-green-600]="c.color==='green'"
-                      [class.text-yellow-600]="c.color==='yellow'"
-                      [class.text-orange-600]="c.color==='orange'"
-                      [class.text-red-600]="c.color==='red'"
+                      [class.text-green-600]="callColor(c)==='green'"
+                      [class.text-yellow-600]="callColor(c)==='yellow'"
+                      [class.text-orange-600]="callColor(c)==='orange'"
+                      [class.text-red-600]="callColor(c)==='red'"
                     >{{ remainingFromDate(c.scheduled_date) }}</span>
                     </div>
                     }
                   </div>
                 </div>
               }
-              <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="bg-accent rounded-xl border border-theme p-4">
+              @if (isSpiritualFather && expiredCalls().length > 0) {
+                <div class="bg-accent rounded-xl border border-red-200 dark:border-red-800 p-4 mb-6">
+                  <h3 class="text-sm font-semibold text-red-600 mb-3">Llamadas Vencidas</h3>
+                  <div class="space-y-2">
+                    @for (c of expiredCalls(); track c.detail_id) {
+                      <div class="flex items-center gap-3 p-2 rounded-lg border border-red-100 dark:border-red-900 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" (click)="goToCalls(c)">
+                        <span class="inline-block w-3 h-3 rounded-full shrink-0 bg-red-500"></span>
+                        <span class="flex-1 text-sm text-primary">{{ c.person_name }}</span>
+                        <span class="text-xs text-secondary">#{{ c.call_number }}</span>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+              <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <div class="bg-accent rounded-xl border border-theme p-4 cursor-pointer transition-opacity"
+              (click)="toggleDataset('total_registered', data()?.summary?.total_registered ?? 0)"
+              [class.opacity-40]="!visibleDatasets()['total_registered'] || (data()?.summary?.total_registered ?? 0) === 0">
               <p class="text-xs text-secondary uppercase tracking-wide font-medium">Consolidados</p>
               <p class="text-3xl font-bold text-primary mt-1">{{ data()?.summary?.total_registered ?? 0 }}</p>
               <p class="text-xs text-secondary mt-1">Total registrados</p>
             </div>
-            <div class="bg-accent rounded-xl border border-theme p-4">
+            <div class="bg-accent rounded-xl border border-theme p-4 cursor-pointer transition-opacity"
+              (click)="toggleDataset('new_people', data()?.summary?.new_people ?? 0)"
+              [class.opacity-40]="!visibleDatasets()['new_people'] || (data()?.summary?.new_people ?? 0) === 0">
               <p class="text-xs text-secondary uppercase tracking-wide font-medium">Nuevos</p>
               <p class="text-3xl font-bold text-primary mt-1">{{ data()?.summary?.new_people ?? 0 }}</p>
               <p class="text-xs text-secondary mt-1">No viene de otra iglesia</p>
             </div>
-            <div class="bg-accent rounded-xl border border-theme p-4">
+            <div class="bg-accent rounded-xl border border-theme p-4 cursor-pointer transition-opacity"
+              (click)="toggleDataset('other_church', data()?.summary?.other_church ?? 0)"
+              [class.opacity-40]="!visibleDatasets()['other_church'] || (data()?.summary?.other_church ?? 0) === 0">
+              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Otra Iglesia</p>
+              <p class="text-3xl font-bold text-primary mt-1">{{ data()?.summary?.other_church ?? 0 }}</p>
+              <p class="text-xs text-secondary mt-1">Viene de otra iglesia</p>
+            </div>
+            <div class="bg-accent rounded-xl border border-theme p-4 cursor-pointer transition-opacity"
+              (click)="toggleDataset('effective', data()?.summary?.effective ?? 0)"
+              [class.opacity-40]="!visibleDatasets()['effective'] || (data()?.summary?.effective ?? 0) === 0">
               <p class="text-xs text-secondary uppercase tracking-wide font-medium">Efectivos</p>
               <p class="text-3xl font-bold text-primary mt-1">{{ data()?.summary?.effective ?? 0 }}</p>
               <p class="text-xs text-secondary mt-1">Permanecen en la iglesia</p>
             </div>
-            <div class="bg-accent rounded-xl border border-theme p-4">
+            <div class="bg-accent rounded-xl border border-theme p-4 cursor-pointer transition-opacity"
+              (click)="toggleDataset('baptized', data()?.summary?.baptized ?? 0)"
+              [class.opacity-40]="!visibleDatasets()['baptized'] || (data()?.summary?.baptized ?? 0) === 0">
               <p class="text-xs text-secondary uppercase tracking-wide font-medium">Bautizados</p>
               <p class="text-3xl font-bold text-primary mt-1">{{ data()?.summary?.baptized ?? 0 }}</p>
               <p class="text-xs text-secondary mt-1">Bautizados</p>
@@ -149,23 +180,13 @@ import {
             @if (isMaestro) {
               <div class="bg-accent rounded-xl border border-theme p-4">
                 <p class="text-xs text-secondary uppercase tracking-wide font-medium">Bautizados</p>
-                <p class="text-3xl font-bold text-primary mt-1">{{ stats()?.baptized ?? 0 }}</p>
-                <p class="text-xs text-secondary mt-1">Personas bautizadas</p>
+                <p class="text-3xl font-bold text-green-600 mt-1">{{ stats()?.baptized_baptism ?? 0 }}</p>
+                <p class="text-xs text-secondary mt-1">Registros completados</p>
               </div>
               <div class="bg-accent rounded-xl border border-theme p-4">
                 <p class="text-xs text-secondary uppercase tracking-wide font-medium">Pend. Bautizo</p>
                 <p class="text-3xl font-bold text-amber-600 mt-1">{{ stats()?.pending_baptism ?? 0 }}</p>
                 <p class="text-xs text-secondary mt-1">Por inscribir a bautizo</p>
-              </div>
-              <div class="bg-accent rounded-xl border border-theme p-4">
-                <p class="text-xs text-secondary uppercase tracking-wide font-medium">Reg. Bautizo</p>
-                <p class="text-3xl font-bold text-blue-600 mt-1">{{ stats()?.registered_baptism ?? 0 }}</p>
-                <p class="text-xs text-secondary mt-1">Inscritos para bautizarse</p>
-              </div>
-              <div class="bg-accent rounded-xl border border-theme p-4">
-                <p class="text-xs text-secondary uppercase tracking-wide font-medium">Baut. Completos</p>
-                <p class="text-3xl font-bold text-green-600 mt-1">{{ stats()?.baptized_baptism ?? 0 }}</p>
-                <p class="text-xs text-secondary mt-1">Ya bautizados</p>
               </div>
             }
           </div>
@@ -179,9 +200,9 @@ export class Dashboard implements OnInit, OnDestroy {
   private dashboardService = inject(DashboardService);
   private toast = inject(ToastService);
 
-  isAdmin = this.auth.getUserRole() === 'Administrador';
-  isMaestro = this.auth.getUserRole() === 'Maestro';
-  isSpiritualFather = this.auth.getUserRole() === 'Padre Espiritual';
+  isAdmin = this.auth.isAdmin();
+  isMaestro = this.auth.isTeacher();
+  isSpiritualFather = this.auth.isSpiritualFather();
 
   // Admin dashboard
   chartCanvas = viewChild<ElementRef<HTMLCanvasElement>>('chartCanvas');
@@ -190,15 +211,27 @@ export class Dashboard implements OnInit, OnDestroy {
   startDate = '';
   endDate = '';
   private chart: Chart | null = null;
+  visibleDatasets = signal<Record<string, boolean>>({
+    total_registered: true,
+    new_people: true,
+    other_church: true,
+    effective: true,
+    baptized: true,
+  });
 
   // Adviser dashboard
   loading = signal(false);
   stats = signal<AdviserStats | null>(null);
   pendingCalls = signal<CallEntry[]>([]);
+  expiredCalls = signal<CallEntry[]>([]);
+  tick = signal(0);
+  private timerInterval: any;
+  private refreshInterval: any;
   private callService = inject(CallService);
+  private router = inject(Router);
 
   ngOnInit(): void {
-    Chart.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, BarController);
+    Chart.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, BarController, ChartDataLabels);
     if (this.isAdmin) {
       this.loadAdminData();
     } else {
@@ -206,11 +239,25 @@ export class Dashboard implements OnInit, OnDestroy {
     }
     if (this.isSpiritualFather) {
       this.loadPendingCalls();
+      this.timerInterval = setInterval(() => this.tick.set(this.tick() + 1), 1000);
+      this.refreshInterval = setInterval(() => this.loadPendingCalls(), 30000);
     }
   }
 
   ngOnDestroy(): void {
     this.chart?.destroy();
+    clearInterval(this.timerInterval);
+    clearInterval(this.refreshInterval);
+  }
+
+  goToCalls(c: CallEntry): void {
+    this.router.navigate(['/calls'], { queryParams: { name: c.person_name } });
+  }
+
+  toggleDataset(key: string, value: number): void {
+    if (value === 0) return;
+    this.visibleDatasets.update(v => ({ ...v, [key]: !v[key] }));
+    requestAnimationFrame(() => this.renderChart());
   }
 
   private loadAdminData(): void {
@@ -283,12 +330,14 @@ export class Dashboard implements OnInit, OnDestroy {
   }
 
   private loadPendingCalls(): void {
-    this.callService.getAllCalls().pipe(
+    this.callService.getAllCalls({ page_size: 99999 }).pipe(
       finalize(() => this.loading.set(false))
     ).subscribe({
       next: (res) => {
         const now = new Date();
-        this.pendingCalls.set(res.results.filter(c => !c.made && new Date(c.scheduled_date) >= now));
+        const pending = res.results.filter(c => !c.made);
+        this.pendingCalls.set(pending.filter(c => new Date(c.scheduled_date) >= now));
+        this.expiredCalls.set(pending.filter(c => new Date(c.scheduled_date) < now));
       },
       error: () => {},
     });
@@ -296,11 +345,33 @@ export class Dashboard implements OnInit, OnDestroy {
 
   remainingFromDate(dateStr: string): string {
     const diff = new Date(dateStr).getTime() - Date.now();
-    if (diff <= 0) return '0min';
-    const hours = diff / 3600000;
-    if (hours >= 48) return `${Math.round(hours / 24)}d`;
-    if (hours >= 1) return `${Math.round(hours)}h`;
-    return `${Math.round(hours * 60)}min`;
+    if (diff <= 0) return '0s';
+    const totalSec = Math.floor(diff / 1000);
+    const d = Math.floor(totalSec / 86400);
+    const h = Math.floor((totalSec % 86400) / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    const parts: string[] = [];
+    if (d > 0) parts.push(`${d}d`);
+    if (d > 0 || h > 0) parts.push(`${h}h`);
+    parts.push(`${m}m`);
+    parts.push(`${s}s`);
+    return parts.join(' ');
+  }
+
+  callColor(c: { scheduled_date: string; created_in: string }): string {
+    const scheduled = new Date(c.scheduled_date).getTime();
+    const created = new Date(c.created_in).getTime();
+    const now = Date.now();
+    if (scheduled <= now) return 'red';
+    const total = scheduled - created;
+    const remaining = scheduled - now;
+    if (total <= 0) return 'red';
+    const pct = remaining / total;
+    if (pct > 0.5) return 'green';
+    if (pct > 0.25) return 'yellow';
+    if (pct > 0) return 'orange';
+    return 'red';
   }
 
   private renderChart(): void {
@@ -337,8 +408,18 @@ export class Dashboard implements OnInit, OnDestroy {
       return d.toLocaleDateString('es-ES', labelFormat);
     });
 
-    const datasets = [
+    const allDatasets: { key: string; label: string; data: number[]; backgroundColor: string; borderColor: string; borderWidth: number; borderRadius: number }[] = [
       {
+        key: 'total_registered',
+        label: 'Consolidados',
+        data: trend.map((e) => e.total),
+        backgroundColor: 'rgba(107, 114, 128, 0.7)',
+        borderColor: '#6b7280',
+        borderWidth: 1,
+        borderRadius: 4,
+      },
+      {
+        key: 'new_people',
         label: 'Nuevos',
         data: trend.map((e) => e.new_people),
         backgroundColor: 'rgba(22, 163, 74, 0.7)',
@@ -347,6 +428,16 @@ export class Dashboard implements OnInit, OnDestroy {
         borderRadius: 4,
       },
       {
+        key: 'other_church',
+        label: 'Otra Iglesia',
+        data: trend.map((e) => e.other_church),
+        backgroundColor: 'rgba(168, 85, 247, 0.7)',
+        borderColor: '#a855f7',
+        borderWidth: 1,
+        borderRadius: 4,
+      },
+      {
+        key: 'effective',
         label: 'Efectivos',
         data: trend.map((e) => e.effective),
         backgroundColor: 'rgba(37, 99, 235, 0.7)',
@@ -355,6 +446,7 @@ export class Dashboard implements OnInit, OnDestroy {
         borderRadius: 4,
       },
       {
+        key: 'baptized',
         label: 'Bautizados',
         data: trend.map((e) => e.baptized),
         backgroundColor: 'rgba(217, 119, 6, 0.7)',
@@ -364,34 +456,50 @@ export class Dashboard implements OnInit, OnDestroy {
       },
     ];
 
-    const onClick = (_event: any, elements: any[]) => {
-      if (elements.length > 0) {
-        this.drillDown(elements[0].index);
-      }
-    };
+    const visibleKeys = this.visibleDatasets();
+    const datasets = allDatasets
+      .filter(d => visibleKeys[d.key])
+      .filter(d => d.data.some(v => v > 0))
+      .map(({ key: _, ...rest }) => rest);
+
+    if (datasets.length === 0) {
+      this.chart?.destroy();
+      this.chart = null;
+      return;
+    }
 
       if (this.chart) {
         this.chart.data.labels = labels;
         this.chart.data.datasets = datasets;
-        this.chart.options.onClick = onClick as any;
         this.chart.update();
       } else {
         this.chart = new Chart(ctx, {
           type: 'bar',
           data: { labels, datasets },
           options: {
-            onClick: onClick as any,
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
               legend: {
                 position: 'top',
                 labels: { boxWidth: 12, padding: 16, font: { size: 12 } },
+                onClick: () => {},
               },
               tooltip: {
                 backgroundColor: '#171717',
                 titleFont: { size: 12 },
                 bodyFont: { size: 12 },
+              },
+              datalabels: {
+                anchor: 'end',
+                align: 'end',
+                color: '#374151',
+                font: { size: 10, weight: 'bold' },
+                offset: 0,
+                display: (ctx) => {
+                  const val = ctx.dataset.data[ctx.dataIndex] as number;
+                  return val > 0;
+                },
               },
             },
             scales: {

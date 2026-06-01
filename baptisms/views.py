@@ -86,7 +86,7 @@ class BaptismalRegisterViewSet(viewsets.ModelViewSet):
         user = self.request.user
         try:
             adviser = user.register_profile.adviser_profile
-            if adviser.role.name == 'Maestro':
+            if adviser.is_teacher():
                 qs = qs.filter(teacher=adviser)
         except:
             pass
@@ -117,7 +117,7 @@ class BaptismalRegisterViewSet(viewsets.ModelViewSet):
             baptized=False, enrollment_fund_1=True,
             member_state='effective',
         ).exclude(id__in=registered_ids)
-        if adviser.role.name != 'Administrador':
+        if not adviser.is_admin():
             persons = persons.filter(spiritual_father=adviser)
         data = []
         for p in persons:
@@ -135,7 +135,7 @@ class BaptismalRegisterViewSet(viewsets.ModelViewSet):
         role = Role.objects.filter(name='Maestro', is_active=True).first()
         if not role:
             return Response([])
-        advisers = Adviser.objects.filter(role=role, is_active=True).select_related('profile')
+        advisers = Adviser.objects.filter(roles=role, is_active=True).select_related('profile')
         data = []
         for a in advisers:
             count = BaptismalRegister.objects.filter(teacher=a).count()
@@ -159,14 +159,14 @@ class BaptismalRegisterViewSet(viewsets.ModelViewSet):
 
         user = request.user
         adviser = user.register_profile.adviser_profile
-        if adviser.role.name == 'Maestro':
+        if adviser.is_teacher():
             teacher = adviser
         else:
             from accounts.models import Adviser, Role
             role = Role.objects.filter(name='Maestro', is_active=True).first()
             if not role:
                 return Response({'error': 'No hay maestros activos'}, status=status.HTTP_400_BAD_REQUEST)
-            teacher = Adviser.objects.filter(role=role, is_active=True).first()
+            teacher = Adviser.objects.filter(roles=role, is_active=True).first()
             if not teacher:
                 return Response({'error': 'No hay maestros activos'}, status=status.HTTP_400_BAD_REQUEST)
 

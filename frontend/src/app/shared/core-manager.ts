@@ -10,7 +10,7 @@ import { Country, City, Neighborhood, ChurchService } from '../persons/person.mo
   standalone: true,
   imports: [FormsModule],
   template: `
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" (click)="close.emit()">
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
   <div class="bg-accent rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto mx-4" (click)="\$event.stopPropagation()">
     <div class="flex justify-between items-center p-4 border-b border-theme">
       <h2 class="text-lg font-bold text-primary">{{ activeTab() === 'services' ? 'Administrar servicios' : 'Administrar ubicaciones' }}</h2>

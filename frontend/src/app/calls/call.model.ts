@@ -5,6 +5,7 @@ export interface CallEntry {
   person_name: string;
   call_number: number;
   scheduled_date: string;
+  created_in: string;
   date_made: string | null;
   made: boolean;
   state: string | null;
@@ -13,6 +14,7 @@ export interface CallEntry {
   made_by_id: number;
   made_by_name: string;
   color: 'green' | 'yellow' | 'orange' | 'red';
+  is_expired?: boolean;
 }
 
 export interface PendingCall {
@@ -22,6 +24,7 @@ export interface PendingCall {
   person_name: string;
   call_number: number;
   scheduled_date: string;
+  created_in: string;
   remaining_hours: number;
   color: 'green' | 'yellow' | 'orange' | 'red';
 }

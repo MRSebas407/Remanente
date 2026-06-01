@@ -18,25 +18,34 @@ import { ConfirmService } from '../shared/confirm';
     <div class="p-4 sm:p-6 max-w-6xl mx-auto space-y-4">
       <div class="flex items-center justify-between">
         <h2 class="text-xl font-semibold text-primary">Registros de Bautizo</h2>
-        <button (click)="openCreate()"
-          class="text-xs px-4 py-2 rounded-lg bg-primary text-on-primary hover:bg-primary-hover transition-colors"
-        >+ Nuevo Registro</button>
+        @if (!isTeacher) {
+          <button (click)="openCreate()"
+            class="text-xs px-4 py-2 rounded-lg bg-primary text-on-primary hover:bg-primary-hover transition-colors"
+          >+ Nuevo Registro</button>
+        }
       </div>
 
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div class="bg-accent rounded-xl border border-theme p-3">
+      <div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
+          [class.border-primary]="activeFilter() === 'all'"
+          [class.border-theme]="activeFilter() !== 'all'"
+          (click)="toggleFilter('all')">
           <p class="text-xs text-secondary uppercase tracking-wide font-medium">Total</p>
-          <p class="text-2xl font-bold text-primary mt-0.5">{{ totalItems }}</p>
+          <p class="text-2xl font-bold text-primary mt-0.5">{{ stats()?.total_baptism ?? totalItems }}</p>
         </div>
-        <div class="bg-accent rounded-xl border border-theme p-3">
+        <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
+          [class.opacity-40]="(stats()?.registered_baptism ?? 0) === 0"
+          [class.border-primary]="activeFilter() === 'pending'"
+          [class.border-theme]="activeFilter() !== 'pending'"
+          (click)="toggleFilter('pending')">
           <p class="text-xs text-secondary uppercase tracking-wide font-medium">Pendientes</p>
-          <p class="text-2xl font-bold text-amber-600 mt-0.5">{{ stats()?.pending_baptism ?? 0 }}</p>
+          <p class="text-2xl font-bold text-amber-600 mt-0.5">{{ stats()?.registered_baptism ?? 0 }}</p>
         </div>
-        <div class="bg-accent rounded-xl border border-theme p-3">
-          <p class="text-xs text-secondary uppercase tracking-wide font-medium">Inscritos</p>
-          <p class="text-2xl font-bold text-blue-600 mt-0.5">{{ stats()?.registered_baptism ?? 0 }}</p>
-        </div>
-        <div class="bg-accent rounded-xl border border-theme p-3">
+        <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
+          [class.opacity-40]="(stats()?.baptized_baptism ?? 0) === 0"
+          [class.border-primary]="activeFilter() === 'baptized'"
+          [class.border-theme]="activeFilter() !== 'baptized'"
+          (click)="toggleFilter('baptized')">
           <p class="text-xs text-secondary uppercase tracking-wide font-medium">Bautizados</p>
           <p class="text-2xl font-bold text-green-600 mt-0.5">{{ stats()?.baptized_baptism ?? baptizedTotal() }}</p>
         </div>
@@ -80,7 +89,13 @@ import { ConfirmService } from '../shared/confirm';
                 </select>
               </th>
               <th class="px-3 py-2 text-right">
-                <span class="text-xs font-medium text-secondary uppercase tracking-wide">Acciones</span>
+                <div class="flex items-center justify-end gap-1">
+                  <span class="text-xs font-medium text-secondary uppercase tracking-wide">Acciones</span>
+                  @if (hasActiveFilters()) {
+                    <button (click)="clearFilters()" title="Limpiar filtros"
+                      class="ml-1 text-xs text-red-500 hover:text-red-700 underline">Limpiar</button>
+                  }
+                </div>
               </th>
             </tr>
           </thead>
@@ -115,10 +130,17 @@ import { ConfirmService } from '../shared/confirm';
                     class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-cyan-50 dark:hover:bg-cyan-900/20 transition-colors text-cyan-500">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                   </button>
-                  <button (click)="openEdit(r)" title="Editar"
-                    class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-accent-hover transition-colors text-secondary">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                  </button>
+                  @if (isAdmin) {
+                    <button (click)="openEdit(r)" title="Editar"
+                      class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-accent-hover transition-colors text-secondary">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    </button>
+                  } @else if (isTeacher && !r.baptized) {
+                    <button (click)="baptize(r)" title="Bautizar"
+                      class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors text-green-500">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                    </button>
+                  }
                   @if (isAdmin) {
                     <button (click)="confirmDelete(r)" title="Eliminar"
                       class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-red-500">
@@ -158,7 +180,7 @@ import { ConfirmService } from '../shared/confirm';
     }
 
     @if (detailItem(); as d) {
-      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" (click)="detailItem.set(null)">
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
         <div class="bg-accent rounded-xl border border-theme shadow-2xl p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto" (click)="$event.stopPropagation()">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-semibold text-primary">Detalle de Bautizo</h3>
@@ -236,7 +258,8 @@ export class BaptismList implements OnInit {
   private confirm = inject(ConfirmService);
   private route = inject(ActivatedRoute);
 
-  isAdmin = this.auth.getUserRole() === 'Administrador';
+  isAdmin = this.auth.isAdmin();
+  isTeacher = this.auth.isTeacher();
   registers = signal<BaptismRegister[]>([]);
   stats = signal<any>(null);
   loading = signal(false);
@@ -250,14 +273,43 @@ export class BaptismList implements OnInit {
   pageSize = 10;
 
   filters = { name: '', decision: '', baptized: '' };
+  activeFilter = signal('');
   private filterTimeout: any;
 
   ngOnInit(): void {
-    this.dashboardService.getMyStats().subscribe({ next: (r) => this.stats.set(r) });
+    this.loadStats();
     this.route.queryParams.subscribe(params => {
       if (params['name']) this.filters.name = params['name'];
       this.loadPage(1);
     });
+  }
+
+  private loadStats(): void {
+    this.dashboardService.getMyStats().subscribe({ next: (r) => this.stats.set(r) });
+  }
+
+  toggleFilter(key: string): void {
+    if (key === 'all') {
+      this.activeFilter.set('');
+      this.filters.baptized = '';
+      this.loadPage(1);
+      return;
+    }
+    if (this.stats() !== null) {
+      const counts: Record<string, number> = {
+        pending: this.stats()?.registered_baptism ?? 0,
+        baptized: this.stats()?.baptized_baptism ?? 0,
+      };
+      if (counts[key] === 0) return;
+    }
+    if (this.activeFilter() === key) {
+      this.activeFilter.set('');
+      this.filters.baptized = '';
+    } else {
+      this.activeFilter.set(key);
+      this.filters.baptized = key === 'pending' ? 'false' : 'true';
+    }
+    this.loadPage(1);
   }
 
   loadPage(p: number): void {
@@ -269,12 +321,12 @@ export class BaptismList implements OnInit {
     if (this.filters.decision) params.decision = this.filters.decision;
     if (this.filters.baptized) params.baptized = this.filters.baptized;
     params.page = p;
-    if (this.pageSize > 0) params.page_size = this.pageSize;
+    params.page_size = this.pageSize || 99999;
     this.service.list(params).subscribe({
       next: (res) => {
         this.registers.set(res.results);
         this.totalItems = res.count;
-        this.totalPages = Math.ceil(res.count / (this.pageSize > 0 ? this.pageSize : 1));
+        this.totalPages = this.pageSize > 0 ? Math.ceil(res.count / this.pageSize) : 1;
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
@@ -282,8 +334,22 @@ export class BaptismList implements OnInit {
   }
 
   onFilterChange(): void {
+    const map: Record<string, string> = { false: 'pending', true: 'baptized' };
+    this.activeFilter.set(this.filters.baptized ? (map[this.filters.baptized] || '') : '');
     clearTimeout(this.filterTimeout);
     this.filterTimeout = setTimeout(() => this.loadPage(1), 300);
+  }
+
+  hasActiveFilters(): boolean {
+    return !!(this.filters.name || this.filters.decision || this.filters.baptized);
+  }
+
+  clearFilters(): void {
+    this.filters.name = '';
+    this.filters.decision = '';
+    this.filters.baptized = '';
+    this.activeFilter.set('');
+    this.loadPage(1);
   }
 
   onPageSizeChange(): void {
@@ -303,11 +369,13 @@ export class BaptismList implements OnInit {
 
   openCreate(): void { this.editId.set(null); this.showForm.set(true); }
   openEdit(r: BaptismRegister): void { this.editId.set(r.id); this.showForm.set(true); }
+  baptize(r: BaptismRegister): void { this.editId.set(r.id); this.showForm.set(true); }
   openDetail(r: BaptismRegister): void { this.detailItem.set(r); }
 
   onSaved(): void {
     this.showForm.set(false);
     this.toast.success('Registro guardado');
+    this.loadStats();
     this.loadPage(this.page);
   }
 
@@ -320,7 +388,7 @@ export class BaptismList implements OnInit {
     });
     if (!ok) return;
     this.service.delete(r.id).subscribe({
-      next: () => { this.toast.success('Registro eliminado'); this.loadPage(this.page); },
+      next: () => { this.toast.success('Registro eliminado'); this.loadStats(); this.loadPage(this.page); },
       error: () => this.toast.error('Error al eliminar'),
     });
   }

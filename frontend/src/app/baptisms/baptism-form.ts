@@ -11,7 +11,7 @@ import { ToastService } from '../shared/toast.service';
   standalone: true,
   imports: [FormsModule, BaptismManager],
   template: `
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" (click)="close.emit()">
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div class="bg-accent rounded-xl border border-theme shadow-2xl p-6 max-w-xl w-full mx-4 max-h-[90vh] overflow-y-auto" (click)="$event.stopPropagation()">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold text-primary">{{ isEdit() ? 'Editar' : 'Nuevo' }} Registro de Bautizo</h3>
@@ -222,7 +222,7 @@ export class BaptismForm implements OnInit {
   showManager = false;
   managerTab = 0;
 
-  isAdmin = this.auth.getUserRole() === 'Administrador';
+  isAdmin = this.auth.isAdmin();
   currentUserName = this.auth.getUserName();
   currentAdviserId = this.auth.getAdviserId();
 

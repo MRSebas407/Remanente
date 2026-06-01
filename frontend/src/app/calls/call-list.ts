@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { DatePipe, NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -9,8 +9,6 @@ import { CallDetailView } from './call-detail-view';
 import { CallEdit } from './call-edit';
 import { CallForm } from './call-form';
 import { AuthService } from '../auth/auth.service';
-import { AdviserService } from '../advisers/adviser.service';
-import { AdviserListEntry } from '../advisers/adviser.model';
 import { ToastService } from '../shared/toast.service';
 import { DashboardService } from '../dashboard/dashboard.service';
 
@@ -32,23 +30,43 @@ import { DashboardService } from '../dashboard/dashboard.service';
       </div>
 
       <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <div class="bg-accent rounded-xl border border-theme p-3">
+        <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
+          [class.opacity-40]="(stats()?.pending_calls ?? 0) === 0"
+          [class.border-primary]="activeFilter() === 'pending'"
+          [class.border-theme]="activeFilter() !== 'pending'"
+          (click)="toggleFilter('pending')">
           <p class="text-xs text-secondary uppercase tracking-wide font-medium">Pendientes</p>
           <p class="text-2xl font-bold text-amber-600 mt-0.5">{{ stats()?.pending_calls ?? 0 }}</p>
         </div>
-        <div class="bg-accent rounded-xl border border-theme p-3">
+        <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
+          [class.opacity-40]="(stats()?.expired_calls ?? 0) === 0"
+          [class.border-primary]="activeFilter() === 'expired'"
+          [class.border-theme]="activeFilter() !== 'expired'"
+          (click)="toggleFilter('expired')">
           <p class="text-xs text-secondary uppercase tracking-wide font-medium">Vencidas</p>
           <p class="text-2xl font-bold text-red-600 mt-0.5">{{ stats()?.expired_calls ?? 0 }}</p>
         </div>
-        <div class="bg-accent rounded-xl border border-theme p-3">
+        <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
+          [class.opacity-40]="(stats()?.made_calls ?? 0) === 0"
+          [class.border-primary]="activeFilter() === 'made'"
+          [class.border-theme]="activeFilter() !== 'made'"
+          (click)="toggleFilter('made')">
           <p class="text-xs text-secondary uppercase tracking-wide font-medium">Realizadas</p>
           <p class="text-2xl font-bold text-green-600 mt-0.5">{{ stats()?.made_calls ?? 0 }}</p>
         </div>
-        <div class="bg-accent rounded-xl border border-theme p-3">
+        <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
+          [class.opacity-40]="(stats()?.effective_calls ?? 0) === 0"
+          [class.border-primary]="activeFilter() === 'effective'"
+          [class.border-theme]="activeFilter() !== 'effective'"
+          (click)="toggleFilter('effective')">
           <p class="text-xs text-secondary uppercase tracking-wide font-medium">Efectivas</p>
           <p class="text-2xl font-bold text-green-600 mt-0.5">{{ stats()?.effective_calls ?? 0 }}</p>
         </div>
-        <div class="bg-accent rounded-xl border border-theme p-3">
+        <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
+          [class.opacity-40]="(stats()?.not_effective_calls ?? 0) === 0"
+          [class.border-primary]="activeFilter() === 'not_effective'"
+          [class.border-theme]="activeFilter() !== 'not_effective'"
+          (click)="toggleFilter('not_effective')">
           <p class="text-xs text-secondary uppercase tracking-wide font-medium">No Efectivas</p>
           <p class="text-2xl font-bold text-red-600 mt-0.5">{{ stats()?.not_effective_calls ?? 0 }}</p>
         </div>
@@ -59,21 +77,35 @@ import { DashboardService } from '../dashboard/dashboard.service';
           <h3 class="text-sm font-semibold text-primary mb-3">Llamadas Pendientes</h3>
           <div class="space-y-2">
             @for (c of pendingCalls(); track c.detail_id) {
-              <div class="flex items-center gap-3 p-2 rounded-lg border border-theme/50">
+              <div class="flex items-center gap-3 p-2 rounded-lg border border-theme/50 cursor-pointer hover:bg-accent-hover transition-colors" (click)="filterByPerson(c)">
                 <span class="inline-block w-3 h-3 rounded-full shrink-0"
-                  [class.bg-green-500]="c.color==='green'"
-                  [class.bg-yellow-400]="c.color==='yellow'"
-                  [class.bg-orange-400]="c.color==='orange'"
-                  [class.bg-red-500]="c.color==='red'"
+                  [class.bg-green-500]="callColor(c)==='green'"
+                  [class.bg-yellow-400]="callColor(c)==='yellow'"
+                  [class.bg-orange-400]="callColor(c)==='orange'"
+                  [class.bg-red-500]="callColor(c)==='red'"
                 ></span>
                 <span class="flex-1 text-sm text-primary">{{ c.person_name }}</span>
                 <span class="text-xs text-secondary">#{{ c.call_number }}</span>
                 <span class="text-xs font-medium"
-                  [class.text-green-600]="c.color==='green'"
-                  [class.text-yellow-600]="c.color==='yellow'"
-                  [class.text-orange-600]="c.color==='orange'"
-                  [class.text-red-600]="c.color==='red'"
+                  [class.text-green-600]="callColor(c)==='green'"
+                  [class.text-yellow-600]="callColor(c)==='yellow'"
+                  [class.text-orange-600]="callColor(c)==='orange'"
+                  [class.text-red-600]="callColor(c)==='red'"
                 >{{ remainingFromDate(c.scheduled_date) }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      }
+      @if (expiredCalls().length > 0) {
+        <div class="bg-accent rounded-xl border border-red-200 dark:border-red-800 p-4">
+          <h3 class="text-sm font-semibold text-red-600 mb-3">Llamadas Vencidas</h3>
+          <div class="space-y-2">
+            @for (c of expiredCalls(); track c.detail_id) {
+              <div class="flex items-center gap-3 p-2 rounded-lg border border-red-100 dark:border-red-900 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" (click)="filterByEntry(c)">
+                <span class="inline-block w-3 h-3 rounded-full shrink-0 bg-red-500"></span>
+                <span class="flex-1 text-sm text-primary">{{ c.person_name }}</span>
+                <span class="text-xs text-secondary">#{{ c.call_number }}</span>
               </div>
             }
           </div>
@@ -96,13 +128,9 @@ import { DashboardService } from '../dashboard/dashboard.service';
               @if (isAdmin) {
                 <th class="px-3 py-2 text-left hidden md:table-cell">
                   <span class="text-xs font-medium text-secondary uppercase tracking-wide">Asesor</span>
-                  <select [(ngModel)]="filters.made_by" (change)="onFilterChange()"
+                  <input [(ngModel)]="filters.made_by" (input)="onFilterChange()"
+                    placeholder="Filtrar..."
                     class="mt-1 w-full px-2 py-1 text-xs border border-theme rounded bg-accent text-primary focus:outline-none focus:ring-1 focus:ring-black/20">
-                    <option value="">Todos</option>
-                    @for (a of advisers; track a.id) {
-                      <option [value]="a.id">{{ a.full_name }}</option>
-                    }
-                  </select>
                 </th>
               }
               <th class="px-3 py-2 text-left hidden sm:table-cell w-12">
@@ -120,12 +148,20 @@ import { DashboardService } from '../dashboard/dashboard.service';
                   class="mt-1 w-full px-2 py-1 text-xs border border-theme rounded bg-accent text-primary focus:outline-none focus:ring-1 focus:ring-black/20">
                   <option value="">Todos</option>
                   <option value="pending">Pendiente</option>
+                  <option value="expired">Vencida</option>
+                  <option value="made">Realizada</option>
                   <option value="effective">Efectivo</option>
                   <option value="not_effective">No Efectivo</option>
                 </select>
               </th>
               <th class="px-3 py-2 text-right">
-                <span class="text-xs font-medium text-secondary uppercase tracking-wide">Acción</span>
+                <div class="flex items-center justify-end gap-1">
+                  <span class="text-xs font-medium text-secondary uppercase tracking-wide">Acción</span>
+                  @if (hasActiveFilters()) {
+                    <button (click)="clearFilters()" title="Limpiar filtros"
+                      class="ml-1 text-xs text-red-500 hover:text-red-700 underline">Limpiar</button>
+                  }
+                </div>
               </th>
             </tr>
           </thead>
@@ -147,10 +183,10 @@ import { DashboardService } from '../dashboard/dashboard.service';
               >
                 <td class="px-3 py-3">
                   <span class="inline-block w-3 h-3 rounded-full"
-                    [class.bg-green-500]="c.color==='green'"
-                    [class.bg-yellow-400]="c.color==='yellow'"
-                    [class.bg-orange-400]="c.color==='orange'"
-                    [class.bg-red-500]="c.color==='red'"
+                    [class.bg-green-500]="callColor(c)==='green'"
+                    [class.bg-yellow-400]="callColor(c)==='yellow'"
+                    [class.bg-orange-400]="callColor(c)==='orange'"
+                    [class.bg-red-500]="callColor(c)==='red'"
                   ></span>
                 </td>
                 <td class="px-3 py-3">
@@ -247,15 +283,14 @@ import { DashboardService } from '../dashboard/dashboard.service';
     }
   `,
 })
-export class CallList implements OnInit {
+export class CallList implements OnInit, OnDestroy {
   private service = inject(CallService);
   private route = inject(ActivatedRoute);
   private auth = inject(AuthService);
-  private adviserService = inject(AdviserService);
   private dashboardService = inject(DashboardService);
   private toast = inject(ToastService);
 
-  isAdmin = this.auth.getUserRole() === 'Administrador';
+  isAdmin = this.auth.isAdmin();
   calls = signal<CallEntry[]>([]);
   loading = signal(false);
   selectedCall = signal<CallEntry | null>(null);
@@ -265,35 +300,64 @@ export class CallList implements OnInit {
 
   stats = signal<any>(null);
   pendingCalls = signal<PendingCall[]>([]);
-
-  advisers: AdviserListEntry[] = [];
-
-  page = 1;
+  expiredCalls = signal<CallEntry[]>([]);
+  tick = signal(0);
+  activeFilter = signal('');
+  filters = { name: '', made_by: '', state: '' };
   totalItems = 0;
   totalPages = 0;
-  pageSize = 10;
-
-  filters = {
-    name: '',
-    made_by: '',
-    state: '',
-  };
-
+  page = 1;
+  pageSize = 0;
   private filterTimeout: any;
+  private timerInterval: any;
+  private refreshInterval: any;
 
   ngOnInit(): void {
+    this.timerInterval = setInterval(() => this.tick.set(this.tick() + 1), 1000);
+    this.refreshInterval = setInterval(() => this.loadStats(), 30000);
     this.route.queryParams.subscribe(params => {
       if (params['name']) {
         this.filters.name = params['name'];
       }
-      if (this.isAdmin) {
-        this.adviserService.list({}).subscribe({
-          next: (res) => { this.advisers = res.results; },
-        });
-      }
       this.loadStats();
       this.loadPage(1);
     });
+  }
+
+  ngOnDestroy(): void {
+    clearInterval(this.timerInterval);
+    clearInterval(this.refreshInterval);
+  }
+
+  filterByPerson(c: PendingCall): void {
+    this.filters.name = c.person_name;
+    this.loadPage(1);
+  }
+
+  filterByEntry(c: CallEntry): void {
+    this.filters.name = c.person_name;
+    this.loadPage(1);
+  }
+
+  toggleFilter(key: string): void {
+    if (this.stats() !== null) {
+      const counts: Record<string, number> = {
+        pending: this.stats()?.pending_calls ?? 0,
+        expired: this.stats()?.expired_calls ?? 0,
+        made: this.stats()?.made_calls ?? 0,
+        effective: this.stats()?.effective_calls ?? 0,
+        not_effective: this.stats()?.not_effective_calls ?? 0,
+      };
+      if (counts[key] === 0) return;
+    }
+    if (this.activeFilter() === key) {
+      this.activeFilter.set('');
+      this.filters.state = '';
+    } else {
+      this.activeFilter.set(key);
+      this.filters.state = key;
+    }
+    this.loadPage(1);
   }
 
   private loadStats(): void {
@@ -303,15 +367,44 @@ export class CallList implements OnInit {
     this.service.getPendingCalls().subscribe({
       next: (res) => { this.pendingCalls.set(res); },
     });
+    const now = new Date();
+    this.service.getAllCalls({ state: 'pending', page_size: 99999 }).subscribe({
+      next: (res) => {
+        this.expiredCalls.set(res.results.filter(c => !c.made && new Date(c.scheduled_date) < now));
+      },
+    });
   }
 
   remainingFromDate(dateStr: string): string {
     const diff = new Date(dateStr).getTime() - Date.now();
-    if (diff <= 0) return '0min';
-    const hours = diff / 3600000;
-    if (hours >= 48) return `${Math.round(hours / 24)}d`;
-    if (hours >= 1) return `${Math.round(hours)}h`;
-    return `${Math.round(hours * 60)}min`;
+    if (diff <= 0) return '0s';
+    const totalSec = Math.floor(diff / 1000);
+    const d = Math.floor(totalSec / 86400);
+    const h = Math.floor((totalSec % 86400) / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    const parts: string[] = [];
+    if (d > 0) parts.push(`${d}d`);
+    if (d > 0 || h > 0) parts.push(`${h}h`);
+    parts.push(`${m}m`);
+    parts.push(`${s}s`);
+    return parts.join(' ');
+  }
+
+  callColor(c: { scheduled_date: string; created_in: string; made?: boolean; state?: string | null }): string {
+    if (c.made) return c.state === 'effective' ? 'green' : 'red';
+    const scheduled = new Date(c.scheduled_date).getTime();
+    const created = new Date(c.created_in).getTime();
+    const now = Date.now();
+    if (scheduled <= now) return 'red';
+    const total = scheduled - created;
+    const remaining = scheduled - now;
+    if (total <= 0) return 'red';
+    const pct = remaining / total;
+    if (pct > 0.5) return 'green';
+    if (pct > 0.25) return 'yellow';
+    if (pct > 0) return 'orange';
+    return 'red';
   }
 
   loadPage(p: number): void {
@@ -323,12 +416,12 @@ export class CallList implements OnInit {
     if (this.filters.made_by) params.made_by = this.filters.made_by;
     if (this.filters.state) params.state = this.filters.state;
     params.page = p;
-    if (this.pageSize > 0) params.page_size = this.pageSize;
+    params.page_size = this.pageSize || 99999;
     this.service.getAllCalls(params).subscribe({
       next: (res) => {
         this.calls.set(res.results);
         this.totalItems = res.count;
-        this.totalPages = Math.ceil(res.count / (this.pageSize > 0 ? this.pageSize : 1));
+        this.totalPages = this.pageSize > 0 ? Math.ceil(res.count / this.pageSize) : 1;
         this.loading.set(false);
       },
       error: () => { this.toast.error('Error al cargar llamadas'); this.loading.set(false); },
@@ -336,8 +429,21 @@ export class CallList implements OnInit {
   }
 
   onFilterChange(): void {
+    this.activeFilter.set(this.filters.state || '');
     clearTimeout(this.filterTimeout);
     this.filterTimeout = setTimeout(() => this.loadPage(1), 300);
+  }
+
+  hasActiveFilters(): boolean {
+    return !!(this.filters.name || this.filters.made_by || this.filters.state);
+  }
+
+  clearFilters(): void {
+    this.filters.name = '';
+    this.filters.made_by = '';
+    this.filters.state = '';
+    this.activeFilter.set('');
+    this.loadPage(1);
   }
 
   onPageSizeChange(): void {
@@ -353,7 +459,10 @@ export class CallList implements OnInit {
   }
 
   stateLabel(c: CallEntry): string {
-    if (!c.made) return 'Pendiente';
+    if (!c.made) {
+      if (new Date(c.scheduled_date).getTime() <= Date.now()) return 'Vencida';
+      return 'Pendiente';
+    }
     return c.state === 'effective' ? 'Efectivo' : 'No Efectivo';
   }
 
@@ -372,18 +481,21 @@ export class CallList implements OnInit {
   onCallSaved(): void {
     this.selectedCall.set(null);
     this.toast.success('Llamada registrada correctamente');
+    this.loadStats();
     this.loadPage(this.page);
   }
 
   onEditSaved(): void {
     this.editCall.set(null);
     this.toast.success('Llamada actualizada correctamente');
+    this.loadStats();
     this.loadPage(this.page);
   }
 
   onCallCreated(): void {
     this.showForm.set(false);
     this.toast.success('Llamada creada correctamente');
+    this.loadStats();
     this.loadPage(1);
   }
 }

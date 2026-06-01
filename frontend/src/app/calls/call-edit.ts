@@ -9,7 +9,7 @@ import { ToastService } from '../shared/toast.service';
   standalone: true,
   imports: [FormsModule],
   template: `
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" (click)="close.emit()">
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div class="bg-accent rounded-xl border border-theme shadow-2xl p-6 max-w-md w-full mx-4" (click)="$event.stopPropagation()">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold text-primary">Editar Llamada</h3>

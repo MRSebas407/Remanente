@@ -6,4 +6,4 @@ from accounts.models import Adviser
 for a in Adviser.objects.all():
     p = a.profile
     s = a.specialism.name if a.specialism else "None"
-    print(f"id={a.id} {p.names} role={a.role.name} spec={s} gender={p.gender} assigned={a.assigned_count}")
+    print(f"id={a.id} {p.names} role={', '.join(a.roles.all().values_list('name', flat=True))} spec={s} gender={p.gender} assigned={a.assigned_count}")

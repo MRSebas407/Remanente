@@ -11,7 +11,7 @@ import { LookupManager } from '../shared/lookup-manager';
   standalone: true,
   imports: [FormsModule, NgIf, LookupManager],
   template: `
-<div class="fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-hidden" (click)="close.emit()">
+<div class="fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-hidden">
   <div class="bg-accent shadow-xl w-full max-w-3xl mx-4 my-6 rounded-xl flex flex-col max-h-[calc(100vh-3rem)]" (click)="\$event.stopPropagation()">
     <div class="flex justify-between items-center p-4 border-b border-theme">
       <h2 class="text-lg font-bold text-primary">Registro de Asesor</h2>

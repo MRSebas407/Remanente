@@ -27,9 +27,9 @@ interface MenuItem {
       >
         <div class="h-14 flex items-center border-b border-sidebar-border overflow-hidden px-3">
           @if (sidebarHover) {
-            <span class="font-bold text-lg text-sidebar-text whitespace-nowrap">App Iglesia</span>
+            <span class="font-bold text-lg text-sidebar-text whitespace-nowrap">Remanente</span>
           } @else {
-            <img src="logo.png" alt="AI" width="32" height="32" class="h-8 w-8 mx-auto" />
+            <img src="logo.svg" alt="Remanente" width="32" height="32" class="h-8 w-8 mx-auto" />
           }
         </div>
         <nav class="flex-1 p-2 space-y-1 overflow-y-auto overflow-x-hidden">
@@ -125,7 +125,7 @@ interface MenuItem {
         <div class="absolute inset-0 bg-black/30"></div>
         <aside class="absolute left-0 top-0 bottom-0 w-56 bg-sidebar border-r border-sidebar-border flex flex-col">
           <div class="h-14 px-4 flex items-center justify-between border-b border-sidebar-border">
-            <h1 class="font-bold text-lg text-sidebar-text">App Iglesia</h1>
+            <h1 class="font-bold text-lg text-sidebar-text">Remanente</h1>
             <button (click)="sidebarOpen.set(false)" class="text-xl p-1 hover:bg-sidebar-hover rounded text-sidebar-text">&times;</button>
           </div>
           <nav class="flex-1 p-3 space-y-1">
@@ -171,9 +171,9 @@ export class Layout implements OnInit {
   sidebarHover = false;
   currentTheme = 'light';
 
-  userName = this.auth.getUserName() || 'Usuario';
+  userName = this.auth.getUserDisplayName() || 'Usuario';
   userRole = this.auth.getUserRole() || '';
-  initials = (this.userName[0] || 'U').toUpperCase();
+  initials = this.auth.getUserInitial();
   userPhoto = signal<string | null>(this.auth.getUserInfo()?.photo || null);
 
   menuItems: MenuItem[] = [];
@@ -198,15 +198,20 @@ export class Layout implements OnInit {
     const stored = this.auth.getUserInfo()?.photo;
     if (stored) {
       this.userPhoto.set(stored);
-    } else if (this.auth.getToken()) {
+    }
+    if (this.auth.getToken()) {
       this.auth.getProfile().subscribe({
         next: (res) => {
-          if (res?.photo) {
+          if (res) {
             const info = this.auth.getUserInfo();
             if (info) {
-              info.photo = res.photo;
+              info.photo = res.photo ?? info.photo;
+              info.names = res.names ?? info.names;
+              info.last_name = res.last_name ?? info.last_name;
               localStorage.setItem('user_info', JSON.stringify(info));
-              this.userPhoto.set(res.photo);
+              this.userPhoto.set(info.photo ?? null);
+              this.userName = this.auth.getUserDisplayName() || 'Usuario';
+              this.initials = this.auth.getUserInitial();
             }
           }
         },
@@ -257,13 +262,13 @@ export class Layout implements OnInit {
       { path: '/', label: 'Dashboard', icon: 'dashboard', exact: true },
       { path: '/persons', label: 'Personas', icon: 'persons', exact: false },
     ];
-    if (this.userRole !== 'Maestro') {
+    if (!this.auth.isTeacher()) {
       items.push({ path: '/calls', label: 'Llamadas', icon: 'calls', exact: false });
     }
-    if (this.userRole === 'Administrador' || this.userRole === 'Maestro') {
+    if (this.auth.isAdmin() || this.auth.isTeacher()) {
       items.push({ path: '/baptisms', label: 'Bautizos', icon: 'baptism', exact: false });
     }
-    if (this.userRole === 'Administrador') {
+    if (this.auth.isAdmin()) {
       items.push({ path: '/advisers', label: 'Asesores', icon: 'user', exact: false });
     }
     this.menuItems = items;

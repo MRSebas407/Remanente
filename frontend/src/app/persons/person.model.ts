@@ -18,6 +18,18 @@ export interface PersonListEntry {
   has_baptism: boolean;
   photo: string | null;
   data_consent: boolean;
+  is_active: boolean;
+}
+
+export interface PersonStats {
+  total: number;
+  assigned: number;
+  pending: number;
+  inactive: number;
+  baptized: number;
+  enrolled_not_baptized: number;
+  pending_fundamentals: number;
+  registered_baptism: number;
 }
 
 export interface PersonDetail {

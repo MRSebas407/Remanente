@@ -2,19 +2,20 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { PersonListEntry, PersonDetail, Country, City, Neighborhood, ChurchService, PaginatedResponse } from './person.model';
+import { PersonListEntry, PersonDetail, PersonStats, Country, City, Neighborhood, ChurchService, PaginatedResponse } from './person.model';
 
 @Injectable({ providedIn: 'root' })
 export class PersonService {
   private http = inject(HttpClient);
 
-  list(params: { name?: string; document?: string; phone?: string; specialism?: string; assignment_state?: string; page?: number; page_size?: number } = {}): Observable<PaginatedResponse<PersonListEntry>> {
+  list(params: { name?: string; document?: string; phone?: string; specialism?: string; assignment_state?: string; enrolled_not_baptized?: string; page?: number; page_size?: number } = {}): Observable<PaginatedResponse<PersonListEntry>> {
     const q = new URLSearchParams();
     if (params.name) q.set('name', params.name);
     if (params.document) q.set('document', params.document);
     if (params.phone) q.set('phone', params.phone);
     if (params.specialism) q.set('specialism', params.specialism);
     if (params.assignment_state) q.set('assignment_state', params.assignment_state);
+    if (params.enrolled_not_baptized) q.set('enrolled_not_baptized', params.enrolled_not_baptized);
     if (params.page) q.set('page', String(params.page));
     if (params.page_size) q.set('page_size', String(params.page_size));
     return this.http.get<PaginatedResponse<PersonListEntry>>(`${environment.apiUrl}/persons/?${q}`);
@@ -42,6 +43,18 @@ export class PersonService {
 
   markBaptized(id: number): Observable<any> {
     return this.http.post(`${environment.apiUrl}/persons/${id}/mark_baptized/`, {});
+  }
+
+  deactivate(id: number): Observable<any> {
+    return this.http.post(`${environment.apiUrl}/persons/${id}/deactivate/`, {});
+  }
+
+  reactivate(id: number): Observable<any> {
+    return this.http.post(`${environment.apiUrl}/persons/${id}/reactivate/`, {});
+  }
+
+  getStats(): Observable<PersonStats> {
+    return this.http.get<PersonStats>(`${environment.apiUrl}/persons/stats/`);
   }
 
   getCountries(): Observable<Country[]> {

@@ -12,7 +12,7 @@ import { LookupManager } from '../shared/lookup-manager';
   imports: [FormsModule, NgIf, LookupManager],
   template: `
     <div class="fixed inset-0 z-40 flex items-start justify-center pt-4 pb-4 overflow-auto">
-      <div class="absolute inset-0 bg-black/30" (click)="close.emit()"></div>
+      <div class="absolute inset-0 bg-black/30"></div>
       <div class="relative bg-accent rounded-xl border border-theme shadow-2xl p-6 max-w-2xl w-full mx-4">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold text-primary">Editar Asesor</h3>

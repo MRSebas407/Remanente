@@ -11,7 +11,7 @@ from .serializers import (
     SpecialismSerializer, AdviserSerializer, AdviserListSerializer, LoginSerializer,
     ProfileSerializer,
 )
-from .permissions import IsAdmin
+from .permissions import IsAdmin, IsAdminOrRead
 
 
 class AuthViewSet(viewsets.ViewSet):
@@ -31,13 +31,17 @@ class AuthViewSet(viewsets.ViewSet):
             adviser = user.register_profile.adviser_profile
             if not adviser.is_active:
                 return Response({'error': 'Tu cuenta está desactivada. Contacta al administrador.'}, status=status.HTTP_401_UNAUTHORIZED)
-            role_name = adviser.role.name
+            role_name = ', '.join(adviser.roles.all().values_list('name', flat=True))
             adviser_id = adviser.id
             theme = user.register_profile.theme
+            names = user.register_profile.names
+            last_name = user.register_profile.last_name
         except:
             role_name = None
             adviser_id = None
             theme = 'light'
+            names = None
+            last_name = None
         refresh = RefreshToken.for_user(user)
         photo_url = request.build_absolute_uri(user.register_profile.photo.url) if user.register_profile.photo else None
         return Response({
@@ -52,6 +56,8 @@ class AuthViewSet(viewsets.ViewSet):
                 'must_change_password': user.must_change_password,
                 'theme': theme,
                 'photo': photo_url,
+                'names': names,
+                'last_name': last_name,
             }
         })
 
@@ -86,7 +92,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
 
 class AdviserViewSet(viewsets.ModelViewSet):
     queryset = Adviser.objects.all()
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdminOrRead]
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -95,7 +101,7 @@ class AdviserViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        qs = qs.exclude(role__name='Administrador')
+        qs = qs.exclude(roles__name='Administrador')
         search = self.request.query_params.get('search')
         name = self.request.query_params.get('name')
         document = self.request.query_params.get('document')
@@ -108,7 +114,7 @@ class AdviserViewSet(viewsets.ModelViewSet):
                 Q(profile__last_name__icontains=search) |
                 Q(profile__document__icontains=search) |
                 Q(profile__phone__icontains=search) |
-                Q(role__name__icontains=search)
+                Q(roles__name__icontains=search)
             )
         if name:
             qs = qs.filter(
@@ -120,17 +126,39 @@ class AdviserViewSet(viewsets.ModelViewSet):
         if phone:
             qs = qs.filter(profile__phone__icontains=phone)
         if role_name:
-            qs = qs.filter(role__name__icontains=role_name)
+            qs = qs.filter(roles__name__icontains=role_name)
         if is_active is not None:
             qs = qs.filter(is_active=is_active.lower() == 'true')
         return qs
 
     @action(detail=True, methods=['post'])
     def deactivate(self, request, pk=None):
+        from persons.models import Person, SPECIALISM_MAP as PERS_SPEC_MAP
+        from persons.views import reassign_person_father
+
         adviser = self.get_object()
         adviser.is_active = False
         adviser.save(update_fields=['is_active'])
-        return Response({'message': 'Asesor desactivado correctamente'})
+
+        assigned_persons = Person.objects.filter(
+            spiritual_father=adviser,
+            is_active=True,
+            assignment_state='assigned',
+        )
+        reassigned = 0
+        pending = 0
+        for person in assigned_persons:
+            result = reassign_person_father(person)
+            if result:
+                reassigned += 1
+            else:
+                pending += 1
+
+        return Response({
+            'message': 'Asesor desactivado correctamente',
+            'reassigned': reassigned,
+            'pending': pending,
+        })
 
     @action(detail=True, methods=['post'])
     def activate(self, request, pk=None):

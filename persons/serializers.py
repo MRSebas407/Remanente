@@ -26,7 +26,7 @@ class PersonSerializer(serializers.ModelSerializer):
 
         current_father = person.spiritual_father
 
-        if current_father and current_father.role.name != 'Padre Espiritual':
+        if current_father and not current_father.is_spiritual_father():
             return
 
         spec_name = SPECIALISM_MAP.get(person.specialism, 'Normal')
@@ -46,7 +46,7 @@ class PersonSerializer(serializers.ModelSerializer):
             return
 
         candidates = Adviser.objects.filter(
-            role=role_sf,
+            roles__in=[role_sf],
             specialism=specialism_obj,
             is_active=True,
             assigned_count__lt=3,
@@ -105,7 +105,7 @@ class PersonCreateSerializer(serializers.ModelSerializer):
             return
 
         candidates = Adviser.objects.filter(
-            role=role_sf,
+            roles__in=[role_sf],
             specialism=specialism,
             is_active=True,
             assigned_count__lt=3,
@@ -132,7 +132,7 @@ class PersonCreateSerializer(serializers.ModelSerializer):
         detail = CallDetail.objects.create(
             call=call,
             made_by=person.spiritual_father,
-            scheduled_date=timezone.now() + timedelta(minutes=5)
+            scheduled_date=timezone.now() + timedelta(minutes=4)
         )
 
         from notifications.services import OpenWAService
@@ -155,7 +155,7 @@ class PersonListSerializer(serializers.ModelSerializer):
             'assignment_state', 'member_state', 'specialism', 'register_date',
             'spiritual_father', 'spiritual_father_name',
             'registered_by', 'registered_by_name',
-            'enrollment_fund_1', 'baptized', 'has_baptism', 'photo', 'data_consent'
+            'enrollment_fund_1', 'baptized', 'has_baptism', 'photo', 'data_consent', 'is_active'
         ]
 
     def get_spiritual_father_name(self, obj):

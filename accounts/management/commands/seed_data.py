@@ -44,10 +44,10 @@ class Command(BaseCommand):
                 phone='0000000000',
                 gender='M',
             )
-            Adviser.objects.create(
+            adviser = Adviser.objects.create(
                 profile=reg,
-                role=Role.objects.get(name='Administrador'),
             )
+            adviser.roles.add(Role.objects.get(name='Administrador'))
             self.stdout.write(self.style.SUCCESS('Admin user created: admin / admin123'))
 
         pf_role = Role.objects.get(name='Padre Espiritual')
@@ -59,10 +59,11 @@ class Command(BaseCommand):
                 user=user, names='Carlos', last_name='Gómez',
                 document='1000000001', phone='3209990001', gender='M',
             )
-            Adviser.objects.create(
-                profile=reg, role=pf_role,
+            adviser = Adviser.objects.create(
+                profile=reg,
                 specialism=Specialism.objects.get(name='Normal'),
             )
+            adviser.roles.add(pf_role)
             self.stdout.write(self.style.SUCCESS('Padre espiritual creado: padre1 / 123456'))
 
         if not User.objects.filter(username='padre2').exists():
@@ -71,10 +72,11 @@ class Command(BaseCommand):
                 user=user, names='María', last_name='López',
                 document='1000000002', phone='3209990002', gender='F',
             )
-            Adviser.objects.create(
-                profile=reg, role=pf_role,
+            adviser = Adviser.objects.create(
+                profile=reg,
                 specialism=Specialism.objects.get(name='Joven'),
             )
+            adviser.roles.add(pf_role)
             self.stdout.write(self.style.SUCCESS('Padre espiritual creado: padre2 / 123456'))
 
         if not User.objects.filter(username='maestro1').exists():
@@ -83,9 +85,10 @@ class Command(BaseCommand):
                 user=user, names='Pedro', last_name='Ramírez',
                 document='1000000003', phone='3209990003', gender='M',
             )
-            Adviser.objects.create(
-                profile=reg, role=teacher_role,
+            adviser = Adviser.objects.create(
+                profile=reg,
             )
+            adviser.roles.add(teacher_role)
             self.stdout.write(self.style.SUCCESS('Maestro creado: maestro1 / 123456'))
 
         self.stdout.write(self.style.SUCCESS('Seed data loaded'))

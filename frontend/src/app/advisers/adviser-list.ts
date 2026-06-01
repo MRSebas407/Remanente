@@ -63,7 +63,13 @@ import { ConfirmService } from '../shared/confirm';
                 </select>
               </th>
               <th class="px-3 py-2 text-right">
-                <span class="text-xs font-medium text-secondary uppercase tracking-wide">Acciones</span>
+                <div class="flex items-center justify-end gap-1">
+                  <span class="text-xs font-medium text-secondary uppercase tracking-wide">Acciones</span>
+                  @if (hasActiveFilters()) {
+                    <button (click)="clearFilters()" title="Limpiar filtros"
+                      class="ml-1 text-xs text-red-500 hover:text-red-700 underline">Limpiar</button>
+                  }
+                </div>
               </th>
             </tr>
           </thead>
@@ -95,26 +101,26 @@ import { ConfirmService } from '../shared/confirm';
                       class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-accent-hover transition-colors text-secondary">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                     </button>
-                    <button (click)="openEdit(a.id)" title="Editar"
-                      class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-accent-hover transition-colors text-secondary"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                    </button>
-                    <button (click)="confirmResetPassword(a)" title="Restablecer contraseña"
-                      class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-orange-50 transition-colors text-orange-500">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-                    </button>
-                    @if (a.is_active) {
-                      <button (click)="confirmDeactivate(a)" title="Desactivar"
-                        class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-red-50 transition-colors text-red-500"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
-                      </button>
-                    } @else {
+                    @if (!a.is_active) {
                       <button (click)="confirmActivate(a)" title="Activar"
                         class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-green-50 transition-colors text-green-500"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                      </button>
+                    } @else {
+                      <button (click)="openEdit(a.id)" title="Editar"
+                        class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-accent-hover transition-colors text-secondary"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                      </button>
+                      <button (click)="confirmResetPassword(a)" title="Restablecer contraseña"
+                        class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-orange-50 transition-colors text-orange-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                      </button>
+                      <button (click)="confirmDeactivate(a)" title="Desactivar"
+                        class="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-red-50 transition-colors text-red-500"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
                       </button>
                     }
                   </td>
@@ -199,6 +205,15 @@ export class AdviserList implements OnInit {
     this.filterTimeout = setTimeout(() => this.loadPage(1), 300);
   }
 
+  hasActiveFilters(): boolean {
+    return !!(this.filters.name || this.filters.document || this.filters.phone || this.filters.role_name || this.filters.is_active);
+  }
+
+  clearFilters(): void {
+    this.filters = { name: '', document: '', phone: '', role_name: '', is_active: '' };
+    this.loadPage(1);
+  }
+
   loadPage(p: number): void {
     this.page = p;
     const isFirstLoad = this.advisers().length === 0;
@@ -210,12 +225,12 @@ export class AdviserList implements OnInit {
       role_name: this.filters.role_name || undefined,
       is_active: this.filters.is_active || undefined,
       page: this.page,
-      page_size: this.pageSize > 0 ? this.pageSize : undefined,
+      page_size: this.pageSize || 99999,
     }).subscribe({
       next: (res) => {
         this.advisers.set(res.results);
         this.totalItems = res.count;
-        this.totalPages = Math.ceil(res.count / (this.pageSize > 0 ? this.pageSize : 1));
+        this.totalPages = this.pageSize > 0 ? Math.ceil(res.count / this.pageSize) : 1;
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
@@ -257,8 +272,12 @@ export class AdviserList implements OnInit {
     });
     if (!ok) return;
     this.service.deactivate(a.id).subscribe({
-      next: () => {
-        this.toast.success(`${a.full_name} desactivado`);
+      next: (res: any) => {
+        const msg = `${a.full_name} desactivado`;
+        const extra = [];
+        if (res.reassigned > 0) extra.push(`${res.reassigned} reasignada(s)`);
+        if (res.pending > 0) extra.push(`${res.pending} pendiente(s)`);
+        this.toast.success(extra.length ? `${msg} — ${extra.join(', ')}` : msg);
         this.loadPage(this.page);
       },
     });
