@@ -140,8 +140,8 @@ import ChartDataLabels from 'chartjs-plugin-datalabels';
 
           <div class="bg-accent rounded-xl border border-theme p-4 sm:p-6">
             <h3 class="text-sm font-semibold text-primary mb-4">Tendencia</h3>
-            <div class="relative" style="height: 300px;">
-              <canvas #chartCanvas></canvas>
+            <div class="relative" style="height: 300px; width: 100%;">
+              <canvas #chartCanvas style="width: 100%; height: 100%; display: block;"></canvas>
             </div>
           </div>
         </div>
