@@ -125,7 +125,6 @@ export class AssignFather implements OnInit {
     const p = this.person();
     this.personService.assignSpiritualFather(p.id, this.selectedId).subscribe({
       next: (res) => {
-        this.toast.success(res.warnings?.length ? 'Asignado con advertencias' : 'Padre espiritual asignado');
         this.saved.emit();
       },
       error: async (err) => {
@@ -139,7 +138,7 @@ export class AssignFather implements OnInit {
           });
           if (!ok) return;
           this.personService.assignSpiritualFather(p.id, this.selectedId!, true).subscribe({
-            next: () => { this.toast.success('Padre espiritual asignado'); this.saved.emit(); },
+            next: () => { this.saved.emit(); },
             error: (e2) => this.toast.error(e2.error?.error || 'Error al asignar'),
           });
         } else {

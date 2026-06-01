@@ -121,7 +121,6 @@ export class AssignMaestro implements OnInit {
     const p = this.person();
     this.personService.enrollFundamentals(p.id, this.selectedId).subscribe({
       next: () => {
-        this.toast.success('Inscrito a Fundamentos 1');
         this.saved.emit();
       },
       error: (err) => {
