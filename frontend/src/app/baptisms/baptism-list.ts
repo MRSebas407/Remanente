@@ -18,7 +18,7 @@ import { ConfirmService } from '../shared/confirm';
     <div class="p-4 sm:p-6 max-w-6xl mx-auto space-y-4">
       <div class="flex items-center justify-between">
         <h2 class="text-xl font-semibold text-primary">Registros de Bautizo</h2>
-        @if (isAdmin || isSpiritualFather) {
+        @if (isAdmin) {
           <button (click)="openCreate()"
             class="text-xs px-4 py-2 rounded-lg bg-primary text-on-primary hover:bg-primary-hover transition-colors"
           >+ Nuevo Registro</button>

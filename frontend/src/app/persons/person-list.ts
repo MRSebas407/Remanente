@@ -51,7 +51,7 @@ import { AssignFather } from '../shared/assign-father';
               [class.border-primary]="activeFilter() === 'enrolled_not_baptized'"
               [class.border-theme]="activeFilter() !== 'enrolled_not_baptized'"
               (click)="toggleFilter('enrolled_not_baptized')">
-              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Completó</p>
+              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Completó Fundamentos</p>
               <p class="text-xl font-bold text-purple-600 mt-0.5">{{ s.enrolled_not_baptized }}</p>
             </div>
             <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
