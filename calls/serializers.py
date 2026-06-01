@@ -22,7 +22,7 @@ class CallSerializer(serializers.ModelSerializer):
 
 class CallCreateSerializer(serializers.Serializer):
     person = serializers.PrimaryKeyRelatedField(
-        queryset=Person.objects.filter(member_state='not_effective', is_active=False)
+        queryset=Person.objects.filter(member_state='not_effective')
     )
     call_number = serializers.ChoiceField(choices=[(1, 'Primera'), (2, 'Segunda'), (3, 'Tercera')])
     made_by = serializers.PrimaryKeyRelatedField(queryset=Adviser.objects.all())
