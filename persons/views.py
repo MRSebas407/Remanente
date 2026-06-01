@@ -49,6 +49,10 @@ class PersonViewSet(viewsets.ModelViewSet):
         if assignment_state:
             qs = qs.filter(assignment_state=assignment_state)
 
+        member_state = self.request.query_params.get('member_state')
+        if member_state:
+            qs = qs.filter(member_state=member_state)
+
         enrolled_not_baptized = self.request.query_params.get('enrolled_not_baptized')
         if enrolled_not_baptized == '1':
             qs = qs.filter(enrollment_fund_1=True, baptismal_registers__isnull=True)

@@ -94,7 +94,7 @@ export class CallForm implements OnInit {
   }
 
   ngOnInit(): void {
-    this.personService.list({ page: 1 }).subscribe({
+    this.personService.list({ page: 1, page_size: 99999, member_state: 'not_effective' }).subscribe({
       next: (res) => { this.persons = res.results; },
     });
     this.adviserService.list({}).subscribe({

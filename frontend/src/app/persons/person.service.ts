@@ -8,13 +8,14 @@ import { PersonListEntry, PersonDetail, PersonStats, Country, City, Neighborhood
 export class PersonService {
   private http = inject(HttpClient);
 
-  list(params: { name?: string; document?: string; phone?: string; specialism?: string; assignment_state?: string; enrolled_not_baptized?: string; page?: number; page_size?: number } = {}): Observable<PaginatedResponse<PersonListEntry>> {
+  list(params: { name?: string; document?: string; phone?: string; specialism?: string; member_state?: string; assignment_state?: string; enrolled_not_baptized?: string; page?: number; page_size?: number } = {}): Observable<PaginatedResponse<PersonListEntry>> {
     const q = new URLSearchParams();
     if (params.name) q.set('name', params.name);
     if (params.document) q.set('document', params.document);
     if (params.phone) q.set('phone', params.phone);
     if (params.specialism) q.set('specialism', params.specialism);
     if (params.assignment_state) q.set('assignment_state', params.assignment_state);
+    if (params.member_state) q.set('member_state', params.member_state);
     if (params.enrolled_not_baptized) q.set('enrolled_not_baptized', params.enrolled_not_baptized);
     if (params.page) q.set('page', String(params.page));
     if (params.page_size) q.set('page_size', String(params.page_size));

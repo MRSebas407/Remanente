@@ -43,8 +43,19 @@ class CallViewSet(viewsets.ModelViewSet):
         from .serializers import CallCreateSerializer
         serializer = CallCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        person = serializer.validated_data['person']
+
+        # Si es un reinicio de seguimiento para persona no efectiva:
+        # borrar llamadas anteriores y reactivar
+        if person.member_state == 'not_effective' and not person.is_active:
+            person.calls.all().delete()
+            person.is_active = True
+            person.assignment_state = 'assigned'
+            person.save(update_fields=['is_active', 'assignment_state'])
+
         call = Call.objects.create(
-            person=serializer.validated_data['person'],
+            person=person,
             call_number=serializer.validated_data['call_number'],
         )
         CallDetail.objects.create(
