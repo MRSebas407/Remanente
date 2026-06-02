@@ -1,0 +1,17 @@
+# ──────────────────────────────────────────────
+# .dockerignore — Excluir lo que no va en la imagen
+# ──────────────────────────────────────────────
+.env
+.env.*
+**/.env
+**/.env.*
+.git
+node_modules
+__pycache__
+*.pyc
+.venv
+venv
+media
+staticfiles
+nginx/ssl/*.pem
+nginx/ssl/*.key

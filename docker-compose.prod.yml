@@ -1,14 +1,18 @@
 services:
   nginx:
-    image: nginx:alpine
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+      args:
+        NGINX_CONF: ${NGINX_CONF:-nginx.conf.prod}
     container_name: nginx
     restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
+      - media_data:/media:ro
     depends_on:
       - backend
     networks:

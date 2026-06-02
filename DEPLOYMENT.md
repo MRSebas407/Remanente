@@ -44,15 +44,71 @@ La RAM se distribuye así:
 
 ## Estructura de archivos de producción
 
-Los siguientes archivos están en la rama `deployment`:
+Los siguientes archivos están en este repositorio (rama `deployment`):
 
 | Archivo | Propósito |
 |---|---|
 | `docker-compose.prod.yml` | Orquestación producción con nginx + 2 PostgreSQL |
-| `Dockerfile.prod` | Multi-stage: compila Angular, luego construye Python |
-| `nginx/nginx.conf` | Proxy inverso, SSL, security headers |
+| `docker-compose.local.yml` | Override para probar producción localmente (sin SSL) |
+| `Dockerfile.prod` | Construye solo el backend Python (API Django) |
+| `nginx/Dockerfile` | Construye Angular y lo sirve con nginx |
+| `nginx/nginx.conf` | Proxy inverso con SSL (producción real) |
+| `nginx/nginx.conf.local` | Proxy inverso sin SSL (pruebas locales) |
 | `deploy.sh` | Script de despliegue automatizado |
 | `.gitignore.production` | Gitignore más restrictivo para seguridad |
+| `.dockerignore` | Excluye .env y archivos sensibles de la imagen Docker |
+
+### ¿Qué archivos llegan al servidor? (IMPORTANTE)
+
+En el servidor de producción **NO hay archivos TypeScript (`.ts`)** ni código fuente de Angular. El proceso es:
+
+```
+Código fuente (dev)                Servidor de producción
+─────────────────────              ─────────────────────
+frontend/src/*.ts      ─┐
+frontend/src/*.html    ─┤  ng build ──→  index.html
+frontend/src/*.css     ─┤               *.js  (JavaScript puro)
+                        │               *.css (CSS compilado)
+                        │               assets/ (imágenes, fuentes)
+                        └─── TODO esto  └─── SOLO esto
+                            NO va al        SÍ va al servidor
+                            servidor
+```
+
+El `nginx/Dockerfile`:
+1. **Stage 1 (build):** Compila Angular (TypeScript → JavaScript)
+2. **Stage 2 (runtime):** Toma solo los archivos compilados (`dist/frontend/browser/`) y los copia al directorio de nginx (`/usr/share/nginx/html`)
+
+El resultado dentro del contenedor nginx es:
+```
+/usr/share/nginx/html/
+├── index.html          ← Punto de entrada SPA
+├── main-*.js           ← JavaScript compilado
+├── polyfills-*.js      ← Polyfills
+├── styles-*.css        ← Estilos compilados
+├── chunk-*.js          ← Código partido en trozos (lazy loading)
+├── favicon.ico
+├── logo.png
+└── logo.svg
+```
+
+**⚠️ Sin archivos `.ts`, sin `node_modules`, sin `package.json`.**
+
+### `.dockerignore` — protege las imágenes Docker
+
+El archivo `.dockerignore` evita que archivos sensibles se copien accidentalmente dentro de la imagen Docker:
+
+```
+.env           ← contraseñas, API keys
+.env.*         ← cualquier variante de .env
+.git           ← historial completo del repo
+node_modules   ← pesado e innecesario
+__pycache__    ← archivos compilados locales
+media          ← fotos/firmas de usuarios (se monta como volumen)
+nginx/ssl/*.pem ← certificados SSL
+```
+
+**Ejemplo de peligro:** Si no excluyeras `.env`, la imagen Docker contendría todas tus contraseñas. Cualquiera con acceso al registro de imágenes podría extraerlas.
 
 ## Paso 1 — Instalar el servidor
 
@@ -336,6 +392,36 @@ El archivo `.gitignore.production` excluye:
 3. **Monitoreo:** Instala Uptime Kuma (Docker) para health checks
 4. **Backups automáticos:** Pon el comando de pg_dump en crontab
 5. **Usuario admin solo en DB:** La base de datos de producción solo debe tener el usuario `admin` con contraseña `admin123` para el seed inicial. **Cámbiala inmediatamente.**
+
+## Probar producción localmente
+
+Puedes probar todo el stack de producción en tu máquina sin SSL:
+
+```bash
+# 1. Copiar .env de prueba local
+cp .env.production.local .env
+
+# 2. Construir las imágenes (nginx con nginx.conf.local, backend sin SSL)
+docker compose -f docker-compose.prod.yml -f docker-compose.local.yml build
+
+# 3. Iniciar servicios
+docker compose -f docker-compose.prod.yml -f docker-compose.local.yml up -d
+
+# 4. Verificar
+curl http://localhost/           # → HTML del frontend
+curl http://localhost/api/       # → 401 (API funcionando)
+curl http://localhost/admin/     # → 302 (redirect a login)
+
+# 5. Ver logs
+docker compose -f docker-compose.prod.yml -f docker-compose.local.yml logs -f
+
+# 6. Detener
+docker compose -f docker-compose.prod.yml -f docker-compose.local.yml down
+```
+
+El override `docker-compose.local.yml` cambia:
+- **nginx:** usa `nginx.conf.local` (sin SSL, solo HTTP)
+- **backend:** desactiva SSL redirect, HSTS, cookies seguras
 
 ## Solución de problemas
 
