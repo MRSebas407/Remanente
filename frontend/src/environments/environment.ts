@@ -1,3 +1,4 @@
 export const environment = {
-  apiUrl: 'http://localhost:8000/api',
+  production: true,
+  apiUrl: 'https://www.remanente.com/api',
 };
