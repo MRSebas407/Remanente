@@ -143,6 +143,21 @@ docker compose up --build
 # El backend también queda en http://IP_DEL_PC:8000 (directo)
 ```
 
+#### #### Si el celular no muestra "Avanzado" (Android Chrome reciente)
+Usa **Tailscale Serve** para obtener un certificado válido de Let's Encrypt:
+```bash
+# 1. Reconstruye frontend (puerto interno 4443)
+docker compose build frontend --no-cache
+docker compose up -d
+
+# 2. Activa Tailscale Serve (una vez)
+tailscale serve --bg --https=443 127.0.0.1:8080
+
+# 3. Accede desde el celular: https://100.86.12.12
+# Certificado válido, sin advertencias, cámara funciona
+```
+Para verificar: `tailscale serve status`. Para quitar: `tailscale serve --bg --https=443 off`.
+
 ### Sin Docker (desarrollo)
 ```bash
 # Backend
@@ -161,7 +176,7 @@ python serve.py 4200 dist/frontend/browser  # HTTPS si detecta certs
 # Accede a https://IP_DEL_PC:4200
 ```
 
-**Nota**: Sin Docker, la API está en puerto 8000. Con Docker + nginx, todo corre en puerto 443 con HTTPS.
+**Nota**: Sin Docker, la API está en puerto 8000. Con Docker + nginx, el frontend corre en puerto 4443 (HTTPS directo) o con Tailscale Serve en puerto 443 con certificado válido.
 
 ## Key files
 - `config/settings.py` — Django settings, JWT (1d access, 7d refresh), pagination, OpenWA config

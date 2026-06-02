@@ -11,16 +11,11 @@ FROM nginx:alpine
 
 RUN apk add --no-cache openssl
 
-RUN mkdir -p /etc/nginx/certs
-RUN openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-    -keyout /etc/nginx/certs/server-key.pem \
-    -out /etc/nginx/certs/server.pem \
-    -subj "/C=EC/O=AppIglesia/CN=*" \
-    -addext "subjectAltName=DNS:localhost,DNS:backend,IP:0.0.0.0"
-
 COPY --from=builder /app/dist/frontend/browser /usr/share/nginx/html
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY frontend/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 EXPOSE 443
 
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/entrypoint.sh"]
