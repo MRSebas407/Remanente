@@ -128,8 +128,40 @@ pip install -r requirements.txt
 # .env: DB_HOST=localhost
 python manage.py migrate
 python manage.py seed_data
-python manage.py runserver
+python manage.py runserver  # solo localhost
 ```
+
+## Acceso desde la red local
+El `apiUrl` del frontend se adapta automáticamente: si es HTTPS usa `/api` (mismo origen), si es HTTP usa `hostname:8000/api`.
+
+### Con Docker (recomendado)
+```bash
+docker compose up --build
+# Acceder desde cualquier dispositivo: https://IP_DEL_PC
+# HTTPS auto-firmado — la cámara funciona en el celular
+# El navegador mostrará advertencia → Avanzado → Proceder
+# El backend también queda en http://IP_DEL_PC:8000 (directo)
+```
+
+### Sin Docker (desarrollo)
+```bash
+# Backend
+python manage.py runserver 0.0.0.0:8000
+
+# Frontend
+cd frontend
+ng serve --host 0.0.0.0  # http://IP_DEL_PC:4200
+
+# O con HTTPS (para que funcione la cámara desde el celular)
+# Ejecuta como Administrador (una sola vez):
+.\frontend\setup-https.ps1
+# Luego:
+cd frontend
+python serve.py 4200 dist/frontend/browser  # HTTPS si detecta certs
+# Accede a https://IP_DEL_PC:4200
+```
+
+**Nota**: Sin Docker, la API está en puerto 8000. Con Docker + nginx, todo corre en puerto 443 con HTTPS.
 
 ## Key files
 - `config/settings.py` — Django settings, JWT (1d access, 7d refresh), pagination, OpenWA config

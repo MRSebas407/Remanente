@@ -90,20 +90,20 @@ import { AssignMaestro } from '../shared/assign-maestro';
               <p class="text-xl font-bold text-green-600 mt-0.5">{{ s.assigned }}</p>
             </div>
             <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
-              [class.opacity-40]="(s.enrolled_not_baptized ?? 0) === 0"
+              [class.opacity-40]="s.enrolled_not_baptized === 0"
               [class.border-primary]="activeFilter() === 'enrolled_not_baptized'"
               [class.border-theme]="activeFilter() !== 'enrolled_not_baptized'"
               (click)="toggleFilter('enrolled_not_baptized')">
               <p class="text-xs text-secondary uppercase tracking-wide font-medium">Completó Fundamentos</p>
-              <p class="text-xl font-bold text-purple-600 mt-0.5">{{ s.enrolled_not_baptized ?? 0 }}</p>
+              <p class="text-xl font-bold text-purple-600 mt-0.5">{{ s.enrolled_not_baptized }}</p>
             </div>
             <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
-              [class.opacity-40]="(s.registered_baptism ?? 0) === 0"
+              [class.opacity-40]="s.registered_baptism === 0"
               [class.border-primary]="activeFilter() === 'registered_baptism'"
               [class.border-theme]="activeFilter() !== 'registered_baptism'"
               (click)="toggleFilter('registered_baptism')">
               <p class="text-xs text-secondary uppercase tracking-wide font-medium">Pend. Bautizo</p>
-              <p class="text-xl font-bold text-amber-600 mt-0.5">{{ s.registered_baptism ?? 0 }}</p>
+              <p class="text-xl font-bold text-amber-600 mt-0.5">{{ s.registered_baptism }}</p>
             </div>
           </div>
         } @else {
@@ -117,12 +117,12 @@ import { AssignMaestro } from '../shared/assign-maestro';
               <p class="text-xl font-bold text-green-600 mt-0.5">{{ s.assigned }}</p>
             </div>
             <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
-              [class.opacity-40]="(s.pending_fundamentals ?? 0) === 0"
+              [class.opacity-40]="s.pending_fundamentals === 0"
               [class.border-primary]="activeFilter() === 'pending_fundamentals'"
               [class.border-theme]="activeFilter() !== 'pending_fundamentals'"
               (click)="toggleFilter('pending_fundamentals')">
               <p class="text-xs text-secondary uppercase tracking-wide font-medium">Fundamentos</p>
-              <p class="text-xl font-bold text-purple-600 mt-0.5">{{ s.pending_fundamentals ?? 0 }}</p>
+              <p class="text-xl font-bold text-purple-600 mt-0.5">{{ s.pending_fundamentals }}</p>
             </div>
           </div>
         }
