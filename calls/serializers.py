@@ -26,6 +26,6 @@ class CallCreateSerializer(serializers.Serializer):
     )
     call_number = serializers.ChoiceField(choices=[(1, 'Primera'), (2, 'Segunda'), (3, 'Tercera')])
     made_by = serializers.PrimaryKeyRelatedField(queryset=Adviser.objects.all())
-    scheduled_date = serializers.DateTimeField()
+    scheduled_date = serializers.DateTimeField(required=False)
 
 

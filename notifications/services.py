@@ -117,7 +117,14 @@ class OpenWAService:
 
     def send_text(self, phone: str, message: str) -> dict:
         """Send a text message via OpenWA."""
+        if not phone:
+            return {'success': False, 'error': 'Phone number is empty'}
+
+        self.session_id = None
         status = self.session_status()
+        if status is None:
+            logger.warning('send_text: cannot resolve session — OpenWA may be unreachable (base_url=%s)', self.base_url)
+            return {'success': False, 'error': 'Cannot resolve OpenWA session — check connection'}
         if status in READY:
             pass
         elif status in PENDING:
@@ -139,7 +146,8 @@ class OpenWAService:
 
         chat_id = self._format_phone(phone)
         if not chat_id:
-            return {'success': False, 'error': 'Invalid phone number'}
+            logger.warning('send_text: invalid phone number "%s" after formatting', phone)
+            return {'success': False, 'error': f'Invalid phone number: {phone}'}
 
         payload = {'chatId': chat_id, 'text': message}
         resp = self._request('POST',
@@ -147,13 +155,13 @@ class OpenWAService:
             json=payload)
 
         if resp and resp.status_code in (200, 201):
-            logger.info('Message sent to %s', chat_id)
+            logger.info('Message sent to %s (phone=%s)', chat_id, phone)
             return {'success': True, 'data': resp.json()}
 
-        err = resp.text[:500] if resp else 'No response'
-        logger.warning('Send to %s failed (status=%s): %s', chat_id,
-                       resp.status_code if resp else 'N/A', err)
-        return {'success': False, 'error': err}
+        err_body = resp.text[:500] if resp and hasattr(resp, 'text') else 'No response'
+        status_code = resp.status_code if resp else 'N/A'
+        logger.warning('Send to %s (phone=%s) failed (status=%s): %s', chat_id, phone, status_code, err_body)
+        return {'success': False, 'error': f'HTTP {status_code}: {err_body}'}
 
     def health_check(self) -> bool:
         """Check if OpenWA API is reachable."""

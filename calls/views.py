@@ -45,24 +45,39 @@ class CallViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         person = serializer.validated_data['person']
+        call_number = serializer.validated_data['call_number']
+        made_by = serializer.validated_data['made_by']
 
         # Si es un reinicio de seguimiento para persona no efectiva:
-        # borrar llamadas anteriores y reactivar
+        # borrar solo las llamadas desde este número en adelante
+        # (ej: si crea call #2, borra #2 y #3; si crea #3, borra solo #3)
         if person.member_state == 'not_effective' and not person.is_active:
-            person.calls.all().delete()
+            person.calls.filter(call_number__gte=call_number).delete()
             person.is_active = True
             person.assignment_state = 'assigned'
             person.save(update_fields=['is_active', 'assignment_state'])
 
         call = Call.objects.create(
             person=person,
-            call_number=serializer.validated_data['call_number'],
+            call_number=call_number,
         )
-        CallDetail.objects.create(
+        detail = CallDetail.objects.create(
             call=call,
-            made_by=serializer.validated_data['made_by'],
-            scheduled_date=serializer.validated_data['scheduled_date'],
+            made_by=made_by,
+            scheduled_date=timezone.now(),
         )
+
+        # Notificar al asesor sobre la nueva llamada programada
+        from notifications.services import OpenWAService
+        result = OpenWAService().notify_call_recorded(made_by, person, call_number, None)
+        if not result.get('success'):
+            logger.warning('Notification manual call creation failed for adviser %s: %s',
+                           made_by.id, result.get('error'))
+            warnings = [f'No se pudo enviar notificación WhatsApp: {result.get("error")}']
+            resp_data = CallSerializer(call).data
+            resp_data['notification_warnings'] = warnings
+            return Response(resp_data, status=status.HTTP_201_CREATED)
+
         return Response(CallSerializer(call).data, status=status.HTTP_201_CREATED)
 
     def get_serializer_class(self):
@@ -347,17 +362,25 @@ class CallDetailViewSet(viewsets.ModelViewSet):
             call = detail.call
             person = call.person
             call_number = call.call_number
+            adviser = detail.made_by
 
             if call_number < 3:
                 next_number = call_number + 1
+                next_delay = None
                 if not Call.objects.filter(person=person, call_number=next_number).exists():
                     delay = timedelta(minutes=10) if next_number == 2 else timedelta(minutes=15)
+                    next_delay = delay
                     next_call = Call.objects.create(person=person, call_number=next_number)
                     CallDetail.objects.create(
                         call=next_call,
                         made_by=detail.made_by,
                         scheduled_date=timezone.now() + delay,
                     )
+                from notifications.services import OpenWAService
+                result = OpenWAService().notify_call_recorded(adviser, person, call_number, next_delay)
+                if not result.get('success'):
+                    logger.warning('Notification not_effective→effective call #%s failed: %s',
+                                   call_number, result.get('error'))
             elif call_number == 3:
                 person.member_state = 'effective'
                 person.is_active = True
@@ -366,3 +389,36 @@ class CallDetailViewSet(viewsets.ModelViewSet):
                     person.spiritual_father.assigned_count = max(0, person.spiritual_father.assigned_count - 1)
                     person.spiritual_father.save()
                 person.save()
+                from notifications.services import OpenWAService
+                result = OpenWAService().notify_third_call_completed(adviser, person)
+                if not result.get('success'):
+                    logger.warning('Notification not_effective→effective call #3 completed failed: %s',
+                                   result.get('error'))
+
+        # Si cambió de efectiva a no efectiva, revertir estado de la persona
+        elif old_state == 'effective' and new_state == 'not_effective':
+            call = detail.call
+            person = call.person
+            call_number = call.call_number
+            adviser = detail.made_by
+
+            if call_number < 3:
+                next_number = call_number + 1
+                next_call = Call.objects.filter(person=person, call_number=next_number).first()
+                if next_call:
+                    next_call.details.all().delete()
+                    next_call.delete()
+            elif call_number == 3:
+                person.member_state = 'not_effective'
+                person.is_active = False
+                person.assignment_state = 'deactivated'
+                if person.spiritual_father:
+                    person.spiritual_father.assigned_count += 1
+                    person.spiritual_father.save()
+                    person.spiritual_father = None
+                person.save()
+                from notifications.services import OpenWAService
+                result = OpenWAService().notify_call_recorded(adviser, person, call_number, None)
+                if not result.get('success'):
+                    logger.warning('Notification effective→not_effective call #%s failed: %s',
+                                   call_number, result.get('error'))
