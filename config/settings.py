@@ -4,10 +4,11 @@ from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dev-fallback-key-not-for-production')
 if not DEBUG and SECRET_KEY == 'django-insecure-dev-fallback-key-not-for-production':
     raise ValueError('SECRET_KEY must be changed for production')
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',')
 
 # Security settings (production)
