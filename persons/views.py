@@ -94,6 +94,7 @@ class PersonViewSet(viewsets.ModelViewSet):
         assigned = qs.filter(assignment_state='assigned', is_active=True).count()
         pending = qs.filter(assignment_state='pending', is_active=True).count()
         inactive = qs.filter(is_active=False).count()
+        completed = qs.filter(assignment_state='completed').count()
         baptized = qs.filter(baptized=True).count()
         enrolled_not_baptized = qs.filter(
             enrollment_fund_1=True,
@@ -111,6 +112,7 @@ class PersonViewSet(viewsets.ModelViewSet):
             'assigned': assigned,
             'pending': pending,
             'inactive': inactive,
+            'completed': completed,
             'baptized': baptized,
             'enrolled_not_baptized': enrolled_not_baptized,
             'pending_fundamentals': pending_fundamentals,

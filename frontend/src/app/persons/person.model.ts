@@ -26,6 +26,7 @@ export interface PersonStats {
   assigned: number;
   pending: number;
   inactive: number;
+  completed: number;
   baptized: number;
   enrolled_not_baptized: number;
   pending_fundamentals: number;

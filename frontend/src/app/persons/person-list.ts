@@ -56,20 +56,12 @@ import { AssignMaestro } from '../shared/assign-maestro';
               <p class="text-xl font-bold text-purple-600 mt-0.5">{{ s.enrolled_not_baptized }}</p>
             </div>
             <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
-              [class.opacity-40]="(s.registered_baptism ?? 0) === 0"
-              [class.border-primary]="activeFilter() === 'registered_baptism'"
-              [class.border-theme]="activeFilter() !== 'registered_baptism'"
-              (click)="toggleFilter('registered_baptism')">
-              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Pend. Bautizo</p>
-              <p class="text-xl font-bold text-amber-600 mt-0.5">{{ s.registered_baptism ?? 0 }}</p>
-            </div>
-            <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
-              [class.opacity-40]="s.baptized === 0"
-              [class.border-primary]="activeFilter() === 'baptized'"
-              [class.border-theme]="activeFilter() !== 'baptized'"
-              (click)="toggleFilter('baptized')">
-              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Bautizados</p>
-              <p class="text-xl font-bold text-blue-600 mt-0.5">{{ s.baptized }}</p>
+              [class.opacity-40]="s.completed === 0"
+              [class.border-primary]="activeFilter() === 'completed'"
+              [class.border-theme]="activeFilter() !== 'completed'"
+              (click)="toggleFilter('completed')">
+              <p class="text-xs text-secondary uppercase tracking-wide font-medium">Completados</p>
+              <p class="text-xl font-bold text-blue-600 mt-0.5">{{ s.completed }}</p>
             </div>
             <div class="bg-accent rounded-xl border p-3 cursor-pointer transition-all"
               [class.opacity-40]="s.inactive === 0"
@@ -394,6 +386,7 @@ export class PersonList implements OnInit {
       assigned: this.stats()?.assigned ?? 0,
       pending: this.stats()?.pending ?? 0,
       deactivated: this.stats()?.inactive ?? 0,
+      completed: this.stats()?.completed ?? 0,
       enrolled_not_baptized: this.stats()?.enrolled_not_baptized ?? 0,
       pending_fundamentals: this.stats()?.pending_fundamentals ?? 0,
       registered_baptism: this.stats()?.registered_baptism ?? 0,
@@ -411,7 +404,7 @@ export class PersonList implements OnInit {
     }
 
     this.currentFilterKey = key;
-    if (['assigned', 'pending', 'deactivated'].includes(key)) {
+    if (['assigned', 'pending', 'deactivated', 'completed'].includes(key)) {
       this.filters.assignment_state = key;
     } else {
       this.filters.assignment_state = '';
@@ -451,7 +444,7 @@ export class PersonList implements OnInit {
     const isFirstLoad = this.persons().length === 0;
     if (isFirstLoad) this.loading.set(true);
     const extra: any = {};
-    const customKeys = ['enrolled_not_baptized', 'pending_fundamentals', 'registered_baptism', 'baptized'];
+    const customKeys = ['enrolled_not_baptized', 'pending_fundamentals', 'registered_baptism'];
     if (customKeys.includes(this.currentFilterKey)) {
       extra[this.currentFilterKey] = '1';
     }
