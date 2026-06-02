@@ -156,7 +156,7 @@ tailscale ip -4
 
 ```bash
 # En .env.production del servidor:
-SERVER_TAILSCALE_IP=100.x.x.x
+SERVER_TAILSCALE_IP=100.117.248.87
 ```
 
 Esto hace que el contenedor `dnsmasq` responda a las consultas DNS resolviendo `*.remanente.com` a la IP de Tailscale del servidor.
@@ -230,7 +230,7 @@ CORS_ALLOWED_ORIGINS=http://www.remanente.com
 CSRF_TRUSTED_ORIGINS=http://www.remanente.com
 
 # === DNS local (Tailscale) ===
-SERVER_TAILSCALE_IP=<IP de Tailscale del servidor>
+SERVER_TAILSCALE_IP=100.117.248.87
 
 # === PostgreSQL (app) ===
 DB_NAME=appiglesia
@@ -254,10 +254,10 @@ OPENWA_COUNTRY_CODE=57
 ```bash
 # Obtén la IP de Tailscale del servidor:
 tailscale ip -4
-# → 100.x.x.x
+# → 100.117.248.87
 
 # En .env.production:
-SERVER_TAILSCALE_IP=100.x.x.x
+SERVER_TAILSCALE_IP=100.117.248.87
 ```
 
 ### Generar claves seguras
@@ -341,7 +341,7 @@ cd /opt/appiglesia
 cp .env.production .env
 
 # La IP de Tailscale debe estar en SERVER_TAILSCALE_IP en el .env
-grep SERVER_TAILSCALE_IP .env  # debe mostrar: SERVER_TAILSCALE_IP=100.x.x.x
+grep SERVER_TAILSCALE_IP .env  # debe mostrar: SERVER_TAILSCALE_IP=100.117.248.87
 
 # Construir y arrancar
 docker compose -f docker-compose.prod.yml build --no-cache
