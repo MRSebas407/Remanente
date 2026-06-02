@@ -1,0 +1,53 @@
+# ──────────────────────────────────────────────
+# Dockerfile.prod — Multi-stage build
+# Stage 1: Build Angular frontend
+# Stage 2: Python + compiled frontend
+# ──────────────────────────────────────────────
+
+# === Stage 1: Build Angular ===
+FROM node:20-alpine AS frontend-build
+
+WORKDIR /app
+
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+
+COPY frontend/ .
+RUN npm run build --configuration production
+
+# === Stage 2: Python backend ===
+FROM python:3.12-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq-dev gcc && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Application code
+COPY . .
+
+# Frontend static files
+COPY --from=frontend-build /app/dist/frontend/browser /app/frontend_static
+
+# Collect Django static files
+RUN python manage.py collectstatic --noinput
+
+# Remove dev-only files for smaller image
+RUN rm -rf .env.example docker-compose.yml Dockerfile.dashboard Dockerfile \
+    frontend/node_modules frontend/src \
+    .git .gitignore AGENTS.md BACKEND.md FRONTEND.md 2>/dev/null; exit 0
+
+EXPOSE 8000
+
+CMD ["sh", "-c", "\
+  python manage.py migrate --noinput && \
+  python manage.py seed_data && \
+  python manage.py check_openwa_health && \
+  (while true; do python manage.py send_call_reminders; sleep 30; done) & \
+  gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4"
+]

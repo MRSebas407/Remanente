@@ -1,0 +1,151 @@
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+    networks:
+      - app_network
+
+  db:
+    image: postgres:16-alpine
+    container_name: db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app_network
+
+  openwa-db:
+    image: postgres:16-alpine
+    container_name: openwa-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: openwa
+      POSTGRES_USER: openwa
+      POSTGRES_PASSWORD: ${OPENWA_DB_PASSWORD}
+    volumes:
+      - openwa_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openwa"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app_network
+
+  openwa:
+    image: ghcr.io/rmyndharis/openwa:latest
+    container_name: openwa
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 2785
+      # PostgreSQL
+      DATABASE_TYPE: postgres
+      DATABASE_HOST: openwa-db
+      DATABASE_PORT: 5432
+      DATABASE_NAME: openwa
+      DATABASE_USER: openwa
+      DATABASE_PASSWORD: ${OPENWA_DB_PASSWORD}
+      DATABASE_SYNCHRONIZE: "true"
+      # Engine
+      ENGINE_TYPE: whatsapp-web.js
+      SESSION_DATA_PATH: /app/data/sessions
+      PUPPETEER_HEADLESS: "true"
+      PUPPETEER_ARGS: --no-sandbox,--disable-setuid-sandbox,--disable-dev-shm-usage,--disable-gpu
+      STORAGE_TYPE: local
+      STORAGE_LOCAL_PATH: /app/data/media
+      API_MASTER_KEY: ${OPENWA_API_KEY}
+    volumes:
+      - openwa_data:/app/data
+    depends_on:
+      openwa-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:2785/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - app_network
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    container_name: openwa-dashboard
+    ports:
+      - "127.0.0.1:2886:80"
+    depends_on:
+      openwa:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app_network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: backend
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      DEBUG: "False"
+      SECRET_KEY: ${SECRET_KEY}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
+      CORS_ALLOW_ALL_ORIGINS: "False"
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS}
+      SECURE_SSL_REDIRECT: "True"
+      SESSION_COOKIE_SECURE: "True"
+      CSRF_COOKIE_SECURE: "True"
+      SECURE_HSTS_SECONDS: "31536000"
+      SECURE_HSTS_INCLUDE_SUBDOMAINS: "True"
+      SECURE_HSTS_PRELOAD: "True"
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: db
+      DB_PORT: "5432"
+      OPENWA_BASE_URL: http://openwa:2785/api
+      OPENWA_API_KEY: ${OPENWA_API_KEY}
+      OPENWA_SESSION_ID: default
+      OPENWA_COUNTRY_CODE: "57"
+    volumes:
+      - media_data:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app_network
+
+volumes:
+  postgres_data:
+  openwa_db_data:
+  openwa_data:
+  media_data:
+
+networks:
+  app_network:
