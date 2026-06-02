@@ -3,8 +3,9 @@
 # Construye Angular y sirve los archivos estáticos
 #
 # Build args:
-#   NGINX_CONF=nginx.conf       → local (sin SSL, default)
-#   NGINX_CONF=nginx.conf.prod  → producción (SSL)
+#   NGINX_CONF=nginx.conf       → interno (HTTP, Tailscale — default)
+#   NGINX_CONF=nginx.conf.ssl   → público (SSL, Let's Encrypt)
+#   NGINX_CONF=nginx.conf.local → pruebas locales
 # ──────────────────────────────────────────────
 
 # === Stage 1: Build Angular ===
