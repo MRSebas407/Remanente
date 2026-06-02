@@ -3,15 +3,22 @@
 ## Arquitectura
 
 ```
-                      Tailscale (100.x.x.x:443)
-                              │
-                     ┌────────▼────────┐
-                     │   nginx:443     │ ← SSL (Let's Encrypt)
-                     │ (proxy inverso) │
-                     └──┬──────┬──────┬┘
-                        │      │      │
-              ┌─────────┘ ┌────┘ ┌────┘
-              ▼            ▼      ▼
+             ┌─────────────────────────────────┐
+             │       Tailscale (VPN)            │
+             │  Split DNS: remanente.com        │
+             │  → consulta → dnsmasq:53         │
+             │  → responde: 100.x.x.x           │
+             └──────────────┬──────────────────┘
+                            │
+                 http://www.remanente.com
+                            │
+                     ┌──────▼──────┐
+                     │  nginx:80   │ ← HTTP (sin SSL, interno)
+                     │ proxy inv.  │
+                     └──┬──────┬───┘
+                        │      │
+              ┌─────────┘ ┌────┘
+              ▼            ▼
         ┌──────────┐ ┌──────────┐ ┌──────────┐
         │ Angular  │ │ Django   │ │  OpenWA  │
         │ (static) │ │ Gunicorn │ │  :2785   │
@@ -48,12 +55,15 @@ Los siguientes archivos están en este repositorio (rama `deployment`):
 
 | Archivo | Propósito |
 |---|---|
-| `docker-compose.prod.yml` | Orquestación producción con nginx + 2 PostgreSQL |
-| `docker-compose.local.yml` | Override para probar producción localmente (sin SSL) |
-| `Dockerfile.prod` | Construye solo el backend Python (API Django) |
+| `docker-compose.prod.yml` | Orquestación producción (nginx + dnsmasq + 2 PostgreSQL) |
+| `docker-compose.local.yml` | Override para probar producción localmente |
+| `Dockerfile.prod` | Construye el backend Python (API Django) |
 | `nginx/Dockerfile` | Construye Angular y lo sirve con nginx |
-| `nginx/nginx.conf` | Proxy inverso con SSL (producción real) |
-| `nginx/nginx.conf.local` | Proxy inverso sin SSL (pruebas locales) |
+| `nginx/nginx.conf` | Proxy inverso HTTP (para Tailscale interno, sin SSL) |
+| `nginx/nginx.conf.ssl` | Proxy inverso con SSL (para acceso público futuro) |
+| `nginx/nginx.conf.local` | Proxy sin SSL para pruebas locales |
+| `dnsmasq/Dockerfile` | DNS local para resolver www.remanente.com |
+| `dnsmasq/dnsmasq.conf` | Config: resuelve *.remanente.com → IP Tailscale |
 | `deploy.sh` | Script de despliegue automatizado |
 | `.gitignore.production` | Gitignore más restrictivo para seguridad |
 | `.dockerignore` | Excluye .env y archivos sensibles de la imagen Docker |
@@ -110,6 +120,55 @@ nginx/ssl/*.pem ← certificados SSL
 
 **Ejemplo de peligro:** Si no excluyeras `.env`, la imagen Docker contendría todas tus contraseñas. Cualquiera con acceso al registro de imágenes podría extraerlas.
 
+## DNS local con Tailscale (Split DNS)
+
+Cuando accedes desde cualquier dispositivo en tu red Tailscale, `www.remanente.com` se resuelve a la IP del servidor internamente:
+
+```
+Dispositivo (laptop/celular)
+  → Tailscale enruta la consulta DNS
+  → dnsmasq en el servidor (puerto 53)
+  → Responde: www.remanente.com = 100.x.x.x (IP del servidor)
+  → Navegador abre http://www.remanente.com → nginx
+  → nginx sirve Angular o redirige a Django
+```
+
+### Configurar Split DNS en Tailscale
+
+```
+1. Ve a https://login.tailscale.com/admin/dns
+2. En "Split DNS" → "Add domain"
+3. Escribe: remanente.com
+4. En "Nameserver" selecciona "Custom"
+5. Escribe la IP de Tailscale de tu servidor (ej: 100.x.x.x)
+6. Guardar
+```
+
+### Obtener la IP de Tailscale
+
+```bash
+# En el servidor:
+tailscale ip -4
+# → 100.x.x.x  (este valor va en SERVER_TAILSCALE_IP)
+```
+
+### Configurar en `.env`
+
+```bash
+# En .env.production del servidor:
+SERVER_TAILSCALE_IP=100.x.x.x
+```
+
+Esto hace que el contenedor `dnsmasq` responda a las consultas DNS resolviendo `*.remanente.com` a la IP de Tailscale del servidor.
+
+### ¿Qué pasa si no configuro el Split DNS?
+
+Sin Split DNS, puedes acceder igual por la IP directa de Tailscale:
+```
+http://100.x.x.x
+```
+Pero no por `www.remanente.com` — los dispositivos no sabrían cómo resolver ese dominio.
+
 ## Paso 1 — Instalar el servidor
 
 ```bash
@@ -164,17 +223,14 @@ El archivo `.env.production` **NUNCA se sube a git**. Debes crearlo manualmente 
 ```bash
 # === Django ===
 DEBUG=False
-SECRET_KEY=<generar una clave segura>
-DJANGO_ALLOWED_HOSTS=www.remanente.com
+SECRET_KEY=<generar clave segura>
+DJANGO_ALLOWED_HOSTS=www.remanente.com,localhost
 CORS_ALLOW_ALL_ORIGINS=False
-CORS_ALLOWED_ORIGINS=https://www.remanente.com
-CSRF_TRUSTED_ORIGINS=https://www.remanente.com
-SECURE_SSL_REDIRECT=True
-SESSION_COOKIE_SECURE=True
-CSRF_COOKIE_SECURE=True
-SECURE_HSTS_SECONDS=31536000
-SECURE_HSTS_INCLUDE_SUBDOMAINS=True
-SECURE_HSTS_PRELOAD=True
+CORS_ALLOWED_ORIGINS=http://www.remanente.com
+CSRF_TRUSTED_ORIGINS=http://www.remanente.com
+
+# === DNS local (Tailscale) ===
+SERVER_TAILSCALE_IP=<IP de Tailscale del servidor>
 
 # === PostgreSQL (app) ===
 DB_NAME=appiglesia
@@ -191,6 +247,17 @@ OPENWA_BASE_URL=http://openwa:2785/api
 OPENWA_API_KEY=<generar API key segura>
 OPENWA_SESSION_ID=default
 OPENWA_COUNTRY_CODE=57
+```
+
+### SERVER_TAILSCALE_IP
+
+```bash
+# Obtén la IP de Tailscale del servidor:
+tailscale ip -4
+# → 100.x.x.x
+
+# En .env.production:
+SERVER_TAILSCALE_IP=100.x.x.x
 ```
 
 ### Generar claves seguras
@@ -243,29 +310,27 @@ sudo tailscale funnel --bg 443
 
 Así puedes acceder desde cualquier lugar sin IP pública. El dominio sería algo como `remanente.tailnet-name.ts.net`.
 
-## Paso 6 — SSL con Let's Encrypt
+## Paso 6 — DNS local vs SSL
 
-```bash
-sudo apt install -y certbot
+Como usas **Tailscale interno sin IP pública**, no necesitas SSL/HTTPS. El acceso es:
 
-# Obtener certificado (ejecutar como root)
-sudo certbot certonly --standalone -d www.remanente.com
-
-# Los certificados quedan en:
-#   /etc/letsencrypt/live/www.remanente.com/fullchain.pem
-#   /etc/letsencrypt/live/www.remanente.com/privkey.pem
-
-# Copiarlos donde nginx los lea
-cp /etc/letsencrypt/live/www.remanente.com/fullchain.pem /opt/appiglesia/nginx/ssl/
-cp /etc/letsencrypt/live/www.remanente.com/privkey.pem  /opt/appiglesia/nginx/ssl/
-
-# Renovación automática (certbot programa un timer de systemd)
-sudo certbot renew --dry-run
+```
+http://www.remanente.com → dnsmasq → 100.x.x.x → nginx:80 → app
 ```
 
-### Si usas Tailscale Funnel
+**No necesitas Let's Encrypt ni certificados SSL** porque todo el tráfico va dentro de tu red privada de Tailscale. No hay internet público de por medio.
 
-Con Funnel **no necesitas Let's Encrypt**, Tailscale maneja SSL automáticamente en el dominio `*.ts.net`. Pero si quieres tu dominio personal, sigue la Opción B (VPS proxy).
+### Si en el futuro quisieras SSL público
+
+Cuando quieras exponer la página a internet real (no solo Tailscale):
+
+```
+1. Consigues una VPS con IP pública
+2. Instalas nginx con SSL (certbot)
+3. El archivo nginx/nginx.conf.ssl ya está listo para usar
+4. Construyes con: NGINX_CONF=nginx.conf.ssl
+5. El VPS hace proxy reverso via Tailscale hacia tu servidor
+```
 
 ## Paso 7 — Desplegar
 
@@ -274,6 +339,9 @@ cd /opt/appiglesia
 
 # Asegúrate de tener .env.production configurado
 cp .env.production .env
+
+# La IP de Tailscale debe estar en SERVER_TAILSCALE_IP en el .env
+grep SERVER_TAILSCALE_IP .env  # debe mostrar: SERVER_TAILSCALE_IP=100.x.x.x
 
 # Construir y arrancar
 docker compose -f docker-compose.prod.yml build --no-cache
@@ -285,6 +353,18 @@ docker compose -f docker-compose.prod.yml ps
 # Ver logs
 docker compose -f docker-compose.prod.yml logs -f
 ```
+
+### Servicios que arrancan
+
+| Contenedor | Función |
+|---|---|
+| `dnsmasq` | Resuelve `www.remanente.com` → `100.x.x.x` (DNS local) |
+| `nginx` | Sirve Angular + proxy a Django (puerto 80) |
+| `backend` | Django + Gunicorn (API) |
+| `db` | PostgreSQL de la app |
+| `openwa-db` | PostgreSQL de OpenWA |
+| `openwa` | WhatsApp API |
+| `dashboard` | Panel de administración de OpenWA |
 
 ## Paso 8 — Conectar OpenWA WhatsApp
 
@@ -428,7 +508,9 @@ El override `docker-compose.local.yml` cambia:
 | Problema | Causa posible | Solución |
 |---|---|---|
 | `502 Bad Gateway` | Backend no arrancó | `docker compose logs backend` |
+| `www.remanente.com` no resuelve | Falta Split DNS en Tailscale | Revisar Tailscale Admin → DNS → Split DNS |
+| dnsmasq no arranca | SERVER_TAILSCALE_IP no configurado | `docker compose logs dnsmasq` |
 | OpenWA no conecta | QR no escaneado | Visitar `/openwa/qr/` y escanear |
 | `SECRET_KEY inválida` | No hay `.env` | `cp .env.production .env` |
 | Permiso denegado en Docker | Usuario no en grupo docker | `sudo usermod -aG docker $USER` |
-| Puerto 80/443 ocupado | Otro servicio (Apache) | `sudo systemctl stop apache2` |
+| Puerto 80 ocupado | Otro servicio (Apache) | `sudo systemctl stop apache2` |
